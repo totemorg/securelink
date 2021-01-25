@@ -1,0 +1,27 @@
+{
+  "name": "securelink",
+  "version": "1.0.0",
+  "description": "E2EE gov only",
+  "main": "securelink",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/totemstan/securelink.git"
+  },
+  "keywords": [
+    "E2EE"
+  ],
+  "author": "acme SDS",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/totemstan/securelink/issues"
+  },
+  "homepage": "https://github.com/totemstan/securelink#readme",
+  "dependencies": {
+    "socket.io": "^3.1.0",
+    "socket.io-client": "^3.1.0",
+    "socket.io-clusterhub": "^0.2.1"
+  }
+}
