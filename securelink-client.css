@@ -1,0 +1,20 @@
+/* code highlighting */
+
+// link(rel='stylesheet',href='/clients/reveal/lib/css/#{highlight}.css')
+
+code  {
+	font-family: consolas, courier, monospace;
+	font-size: 1em;
+	line-height: 1.2em;
+	white-space: pre;
+	background-color: #acf; /* any colour's okay */
+	color: #000; /* likewise */
+	border: 1px solid #666;
+	-moz-border-radius: 0.5em;
+	-webkit-border-radius: 0.5em;
+	border-radius: 0.5em; /* just in case */
+	padding: 25px;
+	margin: 1.2em 1em;
+	width: 100%;
+	float: left;
+}

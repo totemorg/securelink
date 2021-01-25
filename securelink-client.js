@@ -34,17 +34,23 @@ function notice_scroll() {
 
 function notice_save() {
 	const
+		passLeadin = "!!";
+	
+	const
 		{ secureLink,sio } = SECLINK,
 		notice = document.getElementById("notice");
 	
-	alert("password: "+notice.value);
-	Encode( notice.value, JSON.stringify(secureLink.history), msg => {
-		//alert("encoded=" + msg);
-		sio.emit("store", {
-			client: ioClient,
-			message: msg
+	if ( notice.value.startsWith(passLeadin) )
+		Encode( notice.value.substr(passLeadin.length), JSON.stringify(secureLink.history), msg => {
+			//alert("encoded=" + msg);
+			sio.emit("store", {
+				client: ioClient,
+				message: msg
+			});
 		});
-	});
+	
+	else
+		alert("supply !!encryption password");
 	
 }
 
@@ -55,7 +61,7 @@ function notice_load() {
 	
 	sio.emit("restore", {
 		client: ioClient
-	});
+	});	
 }
 
 function notice_secure() {
@@ -645,18 +651,24 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 
 				content: req => {		// ingest message history content 
 					const
+						passLeadin = "!!";
+					
+					const
 						{ secureLink } = SECLINK;
+	
+					if ( notice.value.startsWith(passLeadin) )
+						Decode( notice.value.substr(2), req.message, content => {
+							try {
+								secureLink.history = JSON.parse(content);
+							}
 
-					alert("password: "+notice.value);
-					Decode( notice.value, req.message, content => {
-						try {
-							secureLink.history = JSON.parse(content);
-						}
-
-						catch (err) {
-							alert("failed to load history");
-						}
-					});
+							catch (err) {
+								alert("failed to load history");
+							}
+						});
+					
+					else
+						alert("supply !!encryption password");
 				},
 
 				sync: req => {
@@ -664,7 +676,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 						{ secureLink } = SECLINK,
 						{ from,to,message } = req;
 
-					Log(">>>>>>>>>>>sync", req);
+					Log("sync", req);
 
 					secureLink.pubKeys[from] = message;
 					count.value = parseInt(count.value)+1;
@@ -688,7 +700,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 						{ from,to,message,score } = req,
 						forMe = (to == ioClient) || (to == "all");
 
-					Log(">>>>>>>>>>>relay", req);
+					Log("relay", req);
 
 					if ( forMe )
 						if ( secureLink.passphrase && message.indexOf("BEGIN PGP MESSAGE")>=0 )
@@ -721,7 +733,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 	},
 		
 	//============ general purpose data testing and output
-	Log: Log,
+	Log: (...args) => console.log(">>>secLink",args),
 	
 	typeOf: obj => obj.constructor.name,
 	isString: obj => obj.constructor.name == "String",
