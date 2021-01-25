@@ -10,7 +10,7 @@
 
 const		// globals
 	CRYPTO = require("crypto"),	
-	Log = (...args) => Log(">>>socketio",args),
+	Log = (...args) => console.log(">>>socketio",args),
 	Each = ( A, cb ) => {
 		Object.keys(A).forEach( key => cb( key, A[key] ) );
 	};
@@ -49,13 +49,13 @@ const {sqls} = SECLINK = module.exports = {
 					//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 				}),  */
 
-		Trace("SOCKETS AT", IO.path() );
+		Log("CONIG SOCKETS AT", IO.path() );
 
 		IO.on("connect", socket => {  	// listen to side channels 
-			Log("====>>>>connect socket.io");
+			Log("list to side channels");
 
 			socket.on("join", req => {	// Traps client connect when they call io()
-				Log("====>>>>join", req);
+				Log("admit client", req);
 				const
 					{client,message,insecureok} = req;
 
@@ -183,7 +183,7 @@ const {sqls} = SECLINK = module.exports = {
 				const
 					{client,ip,location,message} = req;
 
-				Log(">>>store", req);
+				Log("store client history", req);
 
 				sqlThread( sql => {
 					sql.query(
@@ -202,7 +202,7 @@ const {sqls} = SECLINK = module.exports = {
 				const
 					{client,ip,location,message} = req;
 
-				Log(">>>restore", req);
+				Log("restore client history", req);
 				sqlThread( sql => {
 					sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
 					[client],
@@ -227,7 +227,7 @@ const {sqls} = SECLINK = module.exports = {
 				const
 					{ from,message,to,insecureok,route } = req;
 
-				Log("RELAY", req);
+				Log("relay message", req);
 
 				if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
 					IO.emit("relay", {	// broadcast message to everyone
@@ -287,7 +287,7 @@ const {sqls} = SECLINK = module.exports = {
 			});
 
 			socket.on("login", req => {
-				Log("login", req);
+				Log("login client", req);
 
 				const
 					{ client,pubKey } = req;
