@@ -86,17 +86,17 @@ function notice_signal() {		//< send secure notice message to server
 		toInsecure = "!";
 	
 	const
-		{ secureLink, iosocket } = SECLINK;
+		{ secureLink, iosocket, secureOff } = SECLINK;
 
 	if ( !secureLink ) { 
 		alert("SecureLink never connected");
 		return;
 	}
 
-	Log(secureLink, iosocket);
+	Log(secureLink, iosocket, secureOff);
 
 	const
-		{ pubKeys, priKey, passphrase, secureOff, lookups } = secureLink;
+		{ pubKeys, priKey, passphrase, lookups } = secureLink;
 
 	Log(pubKeys, priKey);
 
@@ -297,9 +297,13 @@ const {
 	onWindows: false,
 	agent: null,
 	platform: "",
-	guest: "guest@totem.org",
-	
+		
+	passHistory: "!!",
+	secureOff: !ioClient.endsWith(".mil") && !ioClient.endsWith("@totem.org"), 
+
 	//========== Text encoding and decoding functions to support socket.io/openpgp secure link
+		
+	// one-way encryption methods
 		
 	Encode: async (password,cleartext,cb) => {
 		const { data: encrypted } = await openpgp.encrypt({
@@ -324,6 +328,8 @@ const {
 		cb( decrypted );
 	},		
 	
+	// two-way PKI encryption methods
+		
 	GenKeys: async (passphrase, cb) => {
 		const { privateKeyArmored, publicKeyArmored, revocationCertificate } = await openpgp.generateKey({
 			userIds: [{ 
@@ -601,15 +607,13 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					GenKeys( passphrase, (pubKey, priKey) => {
 						//alert("gen pub" +pubKey);
 						const 
-							{ guest, iosocket } = SECLINK,
-							{ pubKeys, secureOff } = SECLINK.secureLink = {
-								passHistory: "!!",
+							{ iosocket, secureOff } = SECLINK,
+							{ pubKeys } = SECLINK.secureLink = {
 								passphrase: passphrase,
 								pubKeys: {},
 								priKey: priKey,
 								clients: 1,
 								history: [],
-								secureOff: !ioClient.endsWith(".mil") && !ioClient.endsWith("@totem.org"), 
 								lookups: {
 									$me: ioClient,
 									$strike: `fire the death ray now Mr. president=>$president=>$commanders`,
@@ -656,24 +660,17 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 
 				content: req => {		// ingest message history content 
 					const
-						passHistory = "!!";
-					
-					const
 						{ secureLink } = SECLINK;
 	
-					if ( notice.value.startsWith(passHistory) )
-						Decode( notice.value.substr(2), req.message, content => {
-							try {
-								secureLink.history = JSON.parse(content);
-							}
+					Decode( notice.value.substr(2), req.message, content => {
+						try {
+							secureLink.history = JSON.parse(content);
+						}
 
-							catch (err) {
-								alert("failed to load history");
-							}
-						});
-					
-					else
-						alert("supply !!encryption password");
+						catch (err) {
+							alert("failed to load history");
+						}
+					});
 				},
 
 				sync: req => {
