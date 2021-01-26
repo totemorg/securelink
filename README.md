@@ -1,7 +1,11 @@
 # SecureLink
 
-**SecureLink** provides a secure link between US gov client through the use of PGP end-to-end encryption.
+**SecureLink** provides a secure link between US gov client through the use of PGP end-to-end encryption.  	Like its 
+Socket.IO predecessors, SocketIO provides json-based web sockets, though it has hooks to support secure binary sockets 
+for future VoIP, video, etc applications.
 
+**SecureLink** also provides antibot technology to challenge clients, and a secure login mechanisim.
+	
 ## Installation
 
 Clone [secureLink](https://github.com/totemstan/securelink) || [COE](https://sc.appdev.proj.coe/acmesds/securelink) || [SBU](https://gitlab.gsmil/acmesds/securelink) into your PROJECT/totem folder.   

@@ -2,6 +2,7 @@
 
 /**
 	@module SECLINK
+	
 	This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
 	methods for:
 	
@@ -34,16 +35,13 @@ function notice_scroll() {
 
 function notice_save() {
 	const
-		passLeadin = "!!";
-	
-	const
-		{ secureLink,sio } = SECLINK,
+		{ secureLink,iosocket,passHistory } = SECLINK,
 		notice = document.getElementById("notice");
 	
-	if ( notice.value.startsWith(passLeadin) )
-		Encode( notice.value.substr(passLeadin.length), JSON.stringify(secureLink.history), msg => {
+	if ( notice.value.startsWith(passHistory) )
+		Encode( notice.value.substr(passHistory.length), JSON.stringify(secureLink.history), msg => {
 			//alert("encoded=" + msg);
-			sio.emit("store", {
+			iosocket.emit("store", {
 				client: ioClient,
 				message: msg
 			});
@@ -56,12 +54,16 @@ function notice_save() {
 
 function notice_load() {
 	const
-		{ secureLink,sio } = SECLINK,
+		{ secureLink,iosocket,passHistory } = SECLINK,
 		notice = document.getElementById("notice");
 	
-	sio.emit("restore", {
-		client: ioClient
-	});	
+	if ( notice.value.startsWith(passHistory) )
+		iosocket.emit("restore", {
+			client: ioClient
+		});
+	
+	else
+		alert("supply !!encryption password");
 }
 
 function notice_secure() {
@@ -78,7 +80,117 @@ function notice_delete() {
 	delete secureLink.history;
 	secureLink.history = [];
 }
+
+function notice_signal() {		//< send secure notice message to server
+	const
+		toInsecure = "!";
 	
+	const
+		{ secureLink, iosocket } = SECLINK;
+
+	if ( !secureLink ) { 
+		alert("SecureLink never connected");
+		return;
+	}
+
+	Log(secureLink, iosocket);
+
+	const
+		{ pubKeys, priKey, passphrase, secureOff, lookups } = secureLink;
+
+	Log(pubKeys, priKey);
+
+	const
+		notice = document.getElementById("notice"),
+		upload = document.getElementById("upload");
+
+	Log(notice);
+
+	const
+		files = Array.from(upload.files),
+		[msg, to] = route = notice.value.sub(lookups).split("=>");
+
+	function readTextFiles( msg, files, cb) {
+		var todo = files.length;
+
+		Each( files, (key,file) => {
+			//Log(key,file);
+			if ( file && file.type == "text/plain" ) {
+				var reader = new FileReader();
+				//Log(reader);
+				reader.readAsText(file, "UTF-8");
+				reader.onload = function (evt) {
+					//alert( evt.target.result );
+					msg += evt.target.result;
+					if (--todo <= 0 ) cb(msg);
+					//document.getElementById("fileContents").innerHTML = evt.target.result;
+				};
+				reader.onerror = function (evt) {
+					if (--todo <= 0 ) cb(msg);
+					//document.getElementById("fileContents").innerHTML = "error reading file";
+				};
+			}
+		});
+	}
+
+	function send(msg,to) {
+		//alert(msg);
+
+		(to||"").replace(/ /g,"").split(",").forEach( to => {
+
+			function send(msg,to) {
+				Log("signal", msg, ioClient, "=>", to);
+
+				if ( pubKey = pubKeys[to] )		// use secure link when target in ecosystem
+					Encrypt( passphrase, msg, pubKey, priKey, msg => {
+						//Log(notice.value,msg);
+						iosocket.emit("relay", {		// send encrypted pgp-armored message
+							message: msg,
+							from: ioClient,
+							to: to,
+							route: route.slice(2),
+							insecureok: secureOff
+						});
+					});
+
+				else						// use insecure link when target not in ecosystem
+					iosocket.emit("relay", {		// send raw message
+						message: msg,
+						from: ioClient,
+						to: to.startsWith(toInsecure) ? to.substr(toInsecure.length) : to,
+						route: route.slice(2),
+						insecureok: secureOff || to.startsWith(toInsecure)
+					});
+			}
+
+			switch (to) {
+				case "":
+					send(msg,ioClient);
+					break;
+
+				case "all":
+					Each( secureLink.pubKeys, to => send(msg,to) );
+					break;
+
+				default:
+					send( msg,to);
+			}
+		});
+	}
+
+	if ( files.length ) 
+		readTextFiles( msg, files, msg => {
+			send(msg,to);
+			upload.value = "";			// clear list
+			upload.files.splice(0,0);	// clear list
+		});
+
+	else
+		send(msg,to);
+
+}
+
+
 //============== Extract functions to the browser's global namespace
 
 const {
@@ -185,7 +297,7 @@ const {
 	onWindows: false,
 	agent: null,
 	platform: "",
-	guest: "guest@guest.org",
+	guest: "guest@totem.org",
 	
 	//========== Text encoding and decoding functions to support socket.io/openpgp secure link
 		
@@ -283,112 +395,6 @@ const {
 		cb( decrypted );
 	},
 
-	Signal: () => {		//< send secure notice message to server
-		const
-			{ secureLink, sio } = SECLINK;
-		
-		if ( !secureLink ) { 
-			alert("SecureLink never connected");
-			return
-		}
-		
-		Log(secureLink, sio);
-		
-		const
-			{ pubKeys, priKey, passphrase, goinsecure, lookups } = secureLink;
-		
-		Log(pubKeys, priKey, passphrase, goinsecure, lookups);
-		
-		const
-			notice = document.getElementById("notice"),
-			upload = document.getElementById("upload");
-		
-		Log(notice);
-		
-		const
-			files = Array.from(upload.files),
-			[msg, to] = route = notice.value.sub(lookups).split("=>");
-		
-		function readTextFiles( msg, files, cb) {
-			var todo = files.length;
-			
-			Each( files, (key,file) => {
-				//Log(key,file);
-				if ( file && file.type == "text/plain" ) {
-					var reader = new FileReader();
-					//Log(reader);
-					reader.readAsText(file, "UTF-8");
-					reader.onload = function (evt) {
-						//alert( evt.target.result );
-						msg += evt.target.result;
-						if (--todo <= 0 ) cb(msg);
-						//document.getElementById("fileContents").innerHTML = evt.target.result;
-					};
-					reader.onerror = function (evt) {
-						if (--todo <= 0 ) cb(msg);
-						//document.getElementById("fileContents").innerHTML = "error reading file";
-					};
-				}
-			});
-		}
-
-		function send(msg,to) {
-			//alert(msg);
-			
-			(to||"").replace(/ /g,"").split(",").forEach( to => {
-
-				function send(msg,to) {
-					Log("signal", msg, ioClient, "=>", to);
-
-					if ( pubKey = pubKeys[to] )		// use secure link when target in ecosystem
-						Encrypt( passphrase, msg, pubKey, priKey, msg => {
-							//Log(notice.value,msg);
-							sio.emit("relay", {		// send encrypted pgp-armored message
-								message: msg,
-								from: ioClient,
-								to: to,
-								route: route.slice(2),
-								insecureok: goinsecure
-							});
-						});
-
-					else						// use insecure link when target not in ecosystem
-						sio.emit("relay", {		// send raw message
-							message: msg,
-							from: ioClient,
-							to: (to.charAt(0)=="!") ? to.substr(1) : to,
-							route: route.slice(2),
-							insecureok: goinsecure
-						});
-				}
-
-				switch (to) {
-					case "":
-						send(msg,ioClient);
-						break;
-
-					case "all":
-						Each( secureLink.pubKeys, to => send(msg,to) );
-						break;
-
-					default:
-						send( msg,to);
-				}
-			});
-		}
-		
-		if ( files.length ) 
-			readTextFiles( msg, files, msg => {
-				send(msg,to);
-				upload.value = "";			// clear list
-				upload.files.splice(0,0);	// clear list
-			});
-		
-		else
-			send(msg,to);
-		
-	},
-
 	Kill: msg => {	//< Destroy document and replace with message
 		document.head.childNodes.forEach( el => el.remove() );
 		document.body.childNodes.forEach( el => el.remove() );
@@ -453,29 +459,27 @@ const {
 			Log("join: client="+ioClient+" ip="+ip+" location="+location+" url="+window.location);
 			
 			const
-				sio = SECLINK.sio = io(); /* io({
-					//transports: ["websocket"]
-				}); 		// connect with socket.io  */
+				iosocket = SECLINK.iosocket = io(); // io({transports: ["websocket"] });  // for buggy socket.io
 
 			for (var action in cbs) 				// setup socket.io callbacks
-				sio.on(action, cbs[action]);
+				iosocket.on(action, cbs[action]);
 
-			//sio.on("connect", req => Log("connect", req, sio.id) );
-			//sio.on("disconnect", req => Log("disconnect", req,sio.id) );
+			//iosocket.on("connect", req => Log("connect", req, iosocket.id) );
+			//iosocket.on("disconnect", req => Log("disconnect", req,iosocket.id) );
 			
-			sio.emit("join", {		// request permission to enter
+			iosocket.emit("join", {		// request permission to enter
 				client: ioClient,
 				message: "can I join please?",
 				ip: ip,
 				location: location,
 				agent: SECLINK.agent,
 				platform: SECLINK.platform,
-				insecureok: false //ioClient == SECLINK.guest
+				insecureok: false 
 			}); 
 		}
 		
 		else
-			Log("no socket.io"); 
+			Log("no socketio - insecure mode"); 
 		
 	},
 
@@ -591,72 +595,73 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 	},
 		
 	Sockets: cbs => {		//< Establish socket.io callbacks to the CRUD i/f 
-		function initSecureLink( passphrase, client, cb ) {
-			if ( passphrase && client && openpgp ) 
-				GenKeys( passphrase, (pubKey, priKey) => {
-					//alert("gen pub" +pubKey);
-					const 
-						{ guest, sio } = SECLINK,
-						{ pubKeys } = SECLINK.secureLink = {
-							passphrase: passphrase,
-							pubKeys: {},
-							priKey: priKey,
-							clients: 1,
-							history: [],
-							goinsecure: false, //ioClient == guest,
-							lookups: {
-								$me: ioClient,
-								$strike: `fire the death ray now Mr. president=>$president=>$commanders`,
-								$president: `!brian.d.james@comcast.net`,
-								$commanders: `brian.d.james@comcast.net,brian.d.james@comcast.net`,
-								$test: `this is a test and only a test=>!$me`,
-								$dogs: `Cats are small. Dogs are big. Cats like to chase mice. Dogs like to eat bones.=>!$me`,
-								$drugs: `The Sinola killed everyone in the town.#terror=>!$me`,
-							}
-						};
-
-					//alert("primed secureLink");
-					pubKeys[client] = pubKey;
-
-					sio.emit("login", {		// request permission to enter
-						client: ioClient,
-						pubKey: pubKey,
-					});	
-					
-					Log(pubKey,priKey);
-					cb();								
-				});
-
-			else
-				cb();
-		}
-
 		function joinService(ip,location) {
+			function initSecureLink( passphrase, client, cb ) {
+				if ( passphrase && client && openpgp ) 
+					GenKeys( passphrase, (pubKey, priKey) => {
+						//alert("gen pub" +pubKey);
+						const 
+							{ guest, iosocket } = SECLINK,
+							{ pubKeys, secureOff } = SECLINK.secureLink = {
+								passHistory: "!!",
+								passphrase: passphrase,
+								pubKeys: {},
+								priKey: priKey,
+								clients: 1,
+								history: [],
+								secureOff: !ioClient.endsWith(".mil") && !ioClient.endsWith("@totem.org"), 
+								lookups: {
+									$me: ioClient,
+									$strike: `fire the death ray now Mr. president=>$president=>$commanders`,
+									$president: `!brian.d.james@comcast.net`,
+									$commanders: `brian.d.james@comcast.net,brian.d.james@comcast.net`,
+									$test: `this is a test and only a test=>!$me`,
+									$dogs: `Cats are small. Dogs are big. Cats like to chase mice. Dogs like to eat bones.=>!$me`,
+									$drugs: `The Sinola killed everyone in the town.#terror=>!$me`,
+								}
+							};
+
+						//alert("primed secureLink");
+						pubKeys[client] = pubKey;
+
+						iosocket.emit("login", {		// request permission to enter
+							client: ioClient,
+							pubKey: pubKey,
+						});	
+
+						Log(pubKey,priKey);
+						cb(secureOff);								
+					});
+
+				else
+					cb( true );
+			}
+
 			Join( ip, location, Copy({		// join totem's socket.io manager
 
 				challenge: req => {		// trap client with a challenge
 					Trap(req, () => {			
-						initSecureLink( req.passphrase, ioClient, () => {
-							notice.value = `Welcome ${ioClient}`;
+						initSecureLink( req.passphrase, ioClient, secureOff => {
+							notice.value = ioClient + " " + (secureOff?"insecure":"secure");
 						});
 					});
 				},
 
 				secure: req => {		// start secure link with supplied passphrase
-					alert("secure link: "+req.passphrase);
-					initSecureLink( req.passphrase, ioClient, () => {
-						notice.value = `Welcome ${ioClient}`;
+					//alert("secure link: "+req.passphrase);
+					initSecureLink( req.passphrase, ioClient, secureOff => {
+						notice.value = ioClient + " " + (secureOff?"insecure":"secure");
 					});
 				},
 
 				content: req => {		// ingest message history content 
 					const
-						passLeadin = "!!";
+						passHistory = "!!";
 					
 					const
 						{ secureLink } = SECLINK;
 	
-					if ( notice.value.startsWith(passLeadin) )
+					if ( notice.value.startsWith(passHistory) )
 						Decode( notice.value.substr(2), req.message, content => {
 							try {
 								secureLink.history = JSON.parse(content);

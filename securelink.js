@@ -1,7 +1,9 @@
 /**
-	Provides a form-fit-functional replacement for the notoriously buggy [Socket.IO](https://www.npmjs.com/package/socket.io) and its close cousin 
-	[Socet.IO-Client](https://www.npmjs.com/package/socket.io-client).  Like its Socket.IO predecessors, SocketIO presently
-	provides json-based web sockets, though it has hooks to support binary sockets (for VoIP, video, etc) applications.
+	@module SECLINK
+	
+	[secureLink](https://github.com/totemstan/securelink.git) provides a form-fit-functional replacement for the 
+	notoriously buggy [Socket.IO](https://www.npmjs.com/package/socket.io) and its close cousin 
+	[Socet.IO-Client](https://www.npmjs.com/package/socket.io-client).  
 	
 	@requires socketio
 	@requires socket.io
@@ -9,11 +11,7 @@
 */
 
 const		// globals
-	CRYPTO = require("crypto"),	
-	Log = (...args) => console.log(">>>socketio",args),
-	Each = ( A, cb ) => {
-		Object.keys(A).forEach( key => cb( key, A[key] ) );
-	};
+	CRYPTO = require("crypto");	
 
 const
 	// For buggy socket.io
@@ -24,13 +22,137 @@ const
 	// For working socketio
 	SIO = require("socketio");
 
-const {sqls} = SECLINK = module.exports = {
+const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 	
-	sqlThread: () => { throw new Error("sqlThread undefined"); },
+	Log: (...args) => console.log(">>>socketio",args),
+	
+	Each: ( A, cb ) => {
+		Object.keys(A).forEach( key => cb( key, A[key] ) );
+	},
+	
+	Copy: (src,tar,deep) => {
+
+		for (var key in src) {
+			var val = src[key];
+
+			if (deep) 
+				switch (key) {
+					case Array: 
+						val.Extend(Array);
+						break;
+
+					case "String": 
+						val.Extend(String);
+						break;
+
+					case "Date": 
+						val.Extend(Date);
+						break;
+
+					case "Object": 	
+						val.Extend(Object);
+						break;
+
+					/*case "Function": 
+						this.callStack.push( val ); 
+						break; */
+
+					default:
+
+						var 
+							keys = key.split(deep), 
+							Tar = tar,
+							idx = keys[0],
+							N = keys.length-1;
+
+						for ( var n=0; n < N ;  idx = keys[++n]	) { // index to the element to set/append
+							if ( idx in Tar ) {
+								if ( !Tar[idx] ) Tar[idx] = new Object();
+								Tar = Tar[idx];
+							}
+
+							else
+								Tar = Tar[idx] = new Object(); //new Array();
+						}
+
+						if (idx)  // not null so update target
+							Tar[idx] = val;
+
+						else  // null so append to target
+						if (val.constructor == Object) 
+							for (var n in val) 
+								Tar[n] = val[n];
+
+						else
+							Tar.push( val );
+				}
+
+			else
+				tar[key] = val;
+		}
+
+		return tar;
+	},
+	
+	sqlThread: () => { throw new Error("sqlThread() not configured"); },
+	
+	challenge: {	//< for antibot client challenger 
+		extend: 0,
+		store: [],
+		riddler: "/riddle",
+		captcha: "/captcha",
+		map: []
+	},
+	
+	server: null,
+	inspector: (doc,to,cb) => { throw new Error("inspector() not configured"); },
 	
 	sqls: {
 		getProfile: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
-		addSession: "INSERT INTO openv.sessions SET ?"
+		addSession: "INSERT INTO openv.sessions SET ?",
+		getRiddle: "SELECT * FROM openv.riddles WHERE ? LIMIT 1",
+	},
+	
+	admitClient: (client,guess,res) => {
+			
+		const
+			{ getRiddle }= sqls;
+		
+		if ( getRiddle ) 
+			sqlThread( sql => {
+				sql.query(getRiddle, {Client:client}, (err,rids) => {
+
+					if ( rid = rids[0] ) {
+						var 
+							ID = {Client:rid.ID},
+							Guess = (guess+"").replace(/ /g,"");
+
+						Log(rid);
+
+						if (rid.Riddle == Guess) {
+							res( "pass" );
+							sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+						}
+						else
+						if (rid.Attempts > rid.maxAttempts) {
+							res( "fail" );
+							sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+						}
+						else {
+							res( "retry" );
+							sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
+						}
+
+					}
+
+					else
+						res( "fail" );
+
+				});
+			});
+		
+		else
+			res( "pass" );
 	},
 	
 	/**
@@ -39,8 +161,40 @@ const {sqls} = SECLINK = module.exports = {
 	*/
 	config: opts => {
 		
+		function extendChallenger ( ) {		//< Create antibot challenges.
+			const 
+				{ store, extend, map, captcha } = challenge,
+				{ floor, random } = Math;
+
+			Log( `extend imageset=${captcha} extend=${extend}` );
+
+			if ( captcha )
+				for (var n=0; n<extend; n++) {
+					var 
+						Q = {
+							x: floor(random()*10),
+							y: floor(random()*10),
+							z: floor(random()*10),
+							n: floor(random()*map["0"].length)
+						},
+
+						A = {
+							x: "".tag("img", {src: `${captcha}/${Q.x}/${map[Q.x][Q.n]}.jpg`}),
+							y: "".tag("img", {src: `${captcha}/${Q.y}/${map[Q.y][Q.n]}.jpg`}),
+							z: "".tag("img", {src: `${captcha}/${Q.z}/${map[Q.z][Q.n]}.jpg`})
+						};
+
+					store.push( {
+						Q: `${A.x} * ${A.y} + ${A.z}`,
+						A: Q.x * Q.y + Q.z
+					} );
+				}
+
+			//Log(store);
+		}
+		
 		const 
-			{ riddle, inspector, sqlThread, server } = opts,
+			{ inspector, sqlThread, server, challenge } = Copy( opts, SECLINK, "." ),
 			{ getProfile, addSession } = sqls;
 
 		const
@@ -49,10 +203,10 @@ const {sqls} = SECLINK = module.exports = {
 					//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 				}),  */
 
-		Log("CONIG SOCKETS AT", IO.path() );
+		Log("socketio", IO.path() );
 
 		IO.on("connect", socket => {  	// listen to side channels 
-			Log("list to side channels");
+			Log("listening to side channels");
 
 			socket.on("join", req => {	// Traps client connect when they call io()
 				Log("admit client", req);
@@ -91,9 +245,8 @@ const {sqls} = SECLINK = module.exports = {
 								const
 									{ floor, random } = Math,
 									rand = N => floor( random() * N ),
-									{ riddle } = TOTEM,
-									N = riddle.length,
-									randRiddle = (x) => riddle[rand(N)];
+									N = store.length,
+									randRiddle = () => store[rand(N)];
 
 								return msg
 										.parse$(prof)
@@ -120,7 +273,7 @@ const {sqls} = SECLINK = module.exports = {
 							}
 
 							const
-								{ riddler } = paths,
+								{ riddler, store } = challenge,
 								{ Message, IDs, Retries, Timeout } = profile,
 								riddles = [],
 								probe = makeRiddles( Message, riddles, profile );
@@ -151,10 +304,10 @@ const {sqls} = SECLINK = module.exports = {
 								});
 
 							else
-							if ( prof.Challenge && riddle.length )	// must solve challenge to enter
-								getChallenge(prof, challenge => {
-									Log(challenge);
-									socket.emit("challenge", challenge);
+							if ( prof.Challenge )	// must solve challenge to enter
+								getChallenge(prof, riddle => {
+									Log(riddle);
+									socket.emit("challenge", riddle);
 								});
 
 							else
@@ -192,7 +345,7 @@ const {sqls} = SECLINK = module.exports = {
 						err => {
 
 							socket.emit("status", {
-								message: err ? "store failed" : "store completed"
+								message: err ? "failed to store history" : "history stored"
 							});
 					});
 				});
@@ -210,14 +363,14 @@ const {sqls} = SECLINK = module.exports = {
 
 						Log("restore",err,recs);
 
-						if ( rec = recs[0] )
+						if ( rec = err ? null : recs[0] )
 							socket.emit("content", {
 								message: rec.Content
 							});
 
 						else
 							socket.emit("status", {
-								message: "cant restore content"
+								message: "cant restore history"
 							});
 					});
 				});
@@ -323,8 +476,12 @@ const {sqls} = SECLINK = module.exports = {
 
 		IO.on("disconnection", socket => {
 			Log(">>DISCONNECT CLIENT");
-		});			
+		});	
+		
+		extendChallenger ( );
 	},
 	
 }
+
+
 
