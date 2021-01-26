@@ -466,6 +466,12 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 					to: "all"
 				});
 			});
+			
+			socket.on("exit", req => {
+				Log("exit caught");
+				socket.end();
+			});
+			
 
 		});	
 
