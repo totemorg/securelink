@@ -299,7 +299,7 @@ const {
 	platform: "",
 		
 	passHistory: "!!",
-	secureOff: !ioClient.endsWith(".mil") && !ioClient.endsWith("@totem.org"), 
+	secureOff: !(ioClient.endsWith(".mil") || ioClient.endsWith("@totem.org")) || ioClient.match(/\.ctr@.*\.mil/),
 
 	//========== Text encoding and decoding functions to support socket.io/openpgp secure link
 		
@@ -577,27 +577,36 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 	},
 
 	Pretty: x => {
-		if ( x.forEach ) {
-			var res = "[ ";
-			x.forEach( val => res += Pretty(val) + ", " );
-			return res+" ]";
-		}
-
+		
+		if ( x == 0 ) 
+			return 0+"";
+		
 		else
-		if ( typeof x == "string" ) 
-			return x;
+		if (x)
+			if ( x.forEach ) {
+				var res = "[ ";
+				x.forEach( val => res += Pretty(val) + ", " );
+				return res+" ]";
+			}
 
+			else
+			if ( typeof x == "string" ) 
+				return x;
+
+			else
+			if ( x.toFixed ) 
+				return parseFloat(x.toFixed(2));
+
+			else {
+				var res = "{ ";
+				Each( x, (key,val) => 
+					 res += key + ": "+ Pretty(val) + ", " );
+
+				return res+" }";
+			}
+		
 		else
-		if ( x.toFixed ) 
-			return parseFloat(x.toFixed(2));
-
-		else {
-			var res = "{ ";
-			Each( x, (key,val) => 
-				 res += key + ": "+ Pretty(val) + ", " );
-
-			return res+" }";
-		}
+			return "null";
 	},
 		
 	Sockets: cbs => {		//< Establish socket.io callbacks to the CRUD i/f 
@@ -728,7 +737,13 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			count = document.getElementById("count");
 		
 		if ( probeClient ) 
-			probeClient( (ip,location) => joinService(ip,location) );
+			try {
+				probeClient( (ip,location) => joinService(ip,location) );
+			}
+		
+			catch (err) {
+				joinService( "0.0.0.0", "not provided" );
+			}
 		
 		else		// join with defaults
 			joinService( "0.0.0.0", "not provided" );
