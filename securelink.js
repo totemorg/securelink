@@ -24,7 +24,7 @@ const
 
 const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 	
-	Log: (...args) => console.log(">>>socketio",args),
+	Log: (...args) => console.log(">>>secLink",args),
 	
 	Each: ( A, cb ) => {
 		Object.keys(A).forEach( key => cb( key, A[key] ) );
@@ -127,7 +127,7 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 							ID = {Client:rid.ID},
 							Guess = (guess+"").replace(/ /g,"");
 
-						Log(rid);
+						Log("riddle",rid);
 
 						if (rid.Riddle == Guess) {
 							res( "pass" );
@@ -203,7 +203,7 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 					//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 				}),  */
 
-		Log("socketio", IO.path() );
+		Log("config socketio", IO.path() );
 
 		IO.on("connect", socket => {  	// listen to side channels 
 			Log("listening to side channels");
@@ -295,7 +295,7 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 							}) );
 						}
 
-						Log(err,profs);
+						//Log(err,profs);
 
 						if ( prof = profs[0] ) {
 							if ( prof.Banned ) 
