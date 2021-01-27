@@ -200,7 +200,7 @@ const {
 	isString, isArray, isFunction, isDate, isNumber, isError, typeOf, 
 	Render, Uncomment, Activate} = SECLINK = {
 	
-	probeClient: cb => {
+	probeClient: ioClient.endsWith(".mil") ? null : cb => {
 		
 		// Discover client IP addresses 
 		function probeIPs(callback) {
