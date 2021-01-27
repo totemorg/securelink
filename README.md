@@ -8,7 +8,7 @@ for future VoIP, video, etc applications.
 	
 ## Installation
 
-Clone [secureLink](https://github.com/totemstan/securelink) || [COE](https://sc.appdev.proj.coe/acmesds/securelink) || [SBU](https://gitlab.gsmil/acmesds/securelink) into your PROJECT/totem folder.   
+Clone [secureLink](https://github.com/totemstan/securelink) || [COE](https://sc.appdev.proj.coe/acmesds/securelink) || [SBU](https://gitlab.gsmil/acmesds/securelink) into your PROJECT/securelink folder.   
 
 ## Contacting, Contributing, Following
 
