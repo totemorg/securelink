@@ -24,36 +24,45 @@
 
 //============= notice actions (defined by the site skin) that support the SecureIntercom (socket.io/openpgp)
 
-
 function notice_login() {
-	const
-		{ secureLink,bang } = SECLINK,
-		notice = document.getElementById("notice");
-	
-	if ( notice.value.startsWith(bang) ) {
-		const
-			{acct,pass} = notice.value.substr(bang.length).split("/");
-		
-		notice.value = Ajax({
-				account: acct,
-				password: pass
-			}, "GET", "/login.json" );
-		
-		if (notice.value.indexOf("is good till")>0 ) {
-			var
-				now = new Date(),
-				expireDate = now;
 
-			expireDate.setDate( now.getDate() + 1 );
+	const
+		{ secureLink,bang,initSecureLink } = SECLINK,
+		notice = document.getElementById("notice"),
+		lock = document.getElementById("lock"),
+		info = document.getElementById("info");
+
+	if ( notice.value.startsWith(bang) ) 
+		try {
+			const
+				[acct,pass] = notice.value.substr(bang.length).split("/");
+				login = JSON.parse( Ajax({
+					account: acct,
+					password: pass
+				}, "GET", "/login.json" ) );
 			
-			document.cookie = `client=${acct}; expires=${expireDate}`;
-			log(document.cookie);
+			if ( login.cookie ) {
+				ioClient = login.message;
+				document.cookie = login.cookie;
+			
+				initSecureLink( login.passphrase, ioClient, secure => {
+					notice.value = `Welcome ${ioClient}`;
+					lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
+					info.innerHTML = Object.keys(secureLink.pubKeys).pocs("Totem");
+				}); 
+			}
+			
+			else
+				notice.value = login.message;
 		}
-	}
+	
+		catch (err) {
+			notice.value = "login failed";
+		}
 		
 	else
 		alert(`supply ${bang}login/password`);
-			
+
 }
 
 function notice_scroll() {
@@ -98,12 +107,10 @@ function notice_load() {
 		alert(`supply ${bang}encryption password`);
 }
 
-function notice_secure() {
-	const
-		secure = document.getElementById("secure");
-	
-	secure.value = (secure.value=="on") ? "off" : "on";
+/*
+function notice_lock() {
 }
+*/
 
 function notice_delete() {
 	const
@@ -115,25 +122,26 @@ function notice_delete() {
 
 function notice_signal() {		//< send secure notice message to server
 	const
-		{ bang, secureLink, iosocket, secureOff } = SECLINK;
+		{ bang, secureLink, iosocket } = SECLINK,
+		{ secure } = secureLink;
 
 	if ( !secureLink ) { 
 		alert("SecureLink never connected");
 		return;
 	}
 
-	Log(secureLink, iosocket, secureOff);
+	const
+		notice = document.getElementById("notice"),
+		upload = document.getElementById("upload");
+	
+	if ( notice.value.startsWith("!!") ) return;	// not for me - for a notice control
+
+	//Log(secureLink, iosocket, secure);
 
 	const
 		{ pubKeys, priKey, passphrase, lookups } = secureLink;
 
-	Log(pubKeys, priKey);
-
-	const
-		notice = document.getElementById("notice"),
-		upload = document.getElementById("upload");
-
-	Log(notice);
+	//Log(pubKeys, priKey);
 
 	const
 		files = Array.from(upload.files),
@@ -170,7 +178,7 @@ function notice_signal() {		//< send secure notice message to server
 			function send(msg,to) {
 				Log("signal", msg, ioClient, "=>", to);
 
-				if ( pubKey = pubKeys[to] )		// use secure link when target in ecosystem
+				if ( pubKey = pubKeys[to] )		// use secureLink when target in ecosystem
 					Encrypt( passphrase, msg, pubKey, priKey, msg => {
 						//Log(notice.value,msg);
 						iosocket.emit("relay", {		// send encrypted pgp-armored message
@@ -178,7 +186,7 @@ function notice_signal() {		//< send secure notice message to server
 							from: ioClient,
 							to: to,
 							route: route.slice(2),
-							insecureok: secureOff
+							insecureok: !secure
 						});
 					});
 
@@ -188,7 +196,7 @@ function notice_signal() {		//< send secure notice message to server
 						from: ioClient,
 						to: to.startsWith(bang) ? to.substr(bang.length) : to,
 						route: route.slice(2),
-						insecureok: secureOff || to.startsWith(bang)
+						insecureok: !secure || to.startsWith(bang)
 					});
 			}
 
@@ -334,9 +342,8 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 `,
 
 	bang: "!!",
-	secureOff: !(ioClient.endsWith(".mil") || ioClient.endsWith("@totem.org")) || ioClient.match(/\.ctr@.*\.mil/),
 
-	//========== Text encoding and decoding functions to support socket.io/openpgp secure link
+	//========== Text encoding and decoding functions to support socket.io/openpgp secureLink
 		
 	// one-way encryption methods
 		
@@ -476,34 +483,6 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 
 	//============ socket.io support functions
 	
-	/*
-	Admit: function Admit(name,data) {		//< callback cb("ok") if form was accepted 
-		const
-			form = window.document.forms.namedItem(name),
-			res = Send(form, data),
-			tick = window.document.getElementById("tick"),
-			tries = window.document.getElementById("tries");
-		
-		alert("admit>>>"+res);
-		switch ( res ) {
-			case "pass":
-				tick.value = 666;		// signal halt
-				break;
-				
-			case "fail":
-			case "retry":
-				tick.value = 0;
-				tries.value --;
-				break;
-				
-			default:
-				alert("set cookie"+res);
-				var json = JSON.parse(res);
-				console.log("cookie", json);
-		}
-	},
-	*/
-		
 	Join: (ip,location,cbs) => {		//< Request connection with socket.io
 		
 		if ( io ) {		//	socket.io supported
@@ -533,94 +512,6 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			Log("no socketio - insecure mode"); 
 		
 	},
-
-	/*
-	Trap: (req,cb) => {		//< trap client with an antibot query
-		const
-			kill = 666,
-			step = 1e3,
-			login = "requesting an account".tag("a",{href:"/login"}).blink().bold(),
-			bootoff = 
-`
-Consider ${login} to avoid the bot catcher. <br>
-Thank you for helping Totem protect its war fighters from bad data. <br><br>
-` ;
-
-		const
-			{rejected,message,riddles,retries,timeout,callback} = req;
-
-		const 
-			trap = window.open( 
-				"click", 
-				"_blank",
-				"left=10px,top=10px,width=800,height=200,location=0,menubar=0,status=0,titlebar=0,toolbar=0" );
-
-		trap.onbeforeunload = () => {	//< not supported in all browsers
-			//clearInterval(Fuse);
-			Kill(bootoff);			
-			return "ok";
-		};
-		
-		trap.document.write( [
-			// styles
-			[
-				"input.infoBox, textarea { background: cyan; }",
-				"input.userBox, textarea { background: pink; }"
-			].join("").tag("style", {}),
-
-			// required methods and prototypes 
-			(Each+Ajax+Send+Admit+"String.prototype.tag="+"".tag).tag("script", {}),
-
-			// intros
-			bootoff,
-
-			// inputs
-			[
-				(message+"?").tag("label", {for:"guess"}),
-				"".tag("input", {id:"guess",	type:"text",	size:5, 	class:"userBox",	value:" "	,	submit: 1 }),
-				"".tag("input", {id:"tick",		type:"text",	size:2, 	class:"infoBox", 	value:timeout,	disabled: 1}),
-				"".tag("input", {id:"tries",	type:"text",	size:2, 	class:"infoBox", 	value:retries,	disabled: 1 }),
-				"".tag("input", {
-					type:	"button",	
-					value:	"Submit", 
-					onclick: 
-						//"alert(123);"
-						`Admit( "collect", {client:"${ioClient}"} )`
-				})
-			].join("").tag("form", {
-				id: "collect",
-				action: callback, 
-				method: "get"
-			} ).tag("body", {} )
-		].join("").tag("html", {lang:"en"}) );
-		
-		const
-			tick = trap.document.getElementById("tick"),
-			tries = trap.document.getElementById("tries");
-
-		var
-			Fuse = setInterval( function () {
-				if ( tick.value > 600 ) {
-					//alert("halt");
-					clearInterval(Fuse);
-					trap.close();
-					cb();
-				}
-				
-				else {
-					tick.value--;
-					if ( tick.value <= 0 ) {
-						tick.value = timeout;
-						tries.value--;
-						if ( tries.value <= 0 ) {
-							clearInterval(Fuse);
-							trap.document.write( "Goodbye" );
-							Kill(bootoff);
-						}
-					}
-				}
-			}, step);
-	}, */
 
 	Pretty: x => {
 		
@@ -654,49 +545,58 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 		else
 			return "null";
 	},
-		
+	
+	initSecureLink: ( passphrase, client, cb ) => {
+
+		if ( passphrase && client && openpgp ) 
+			GenKeys( passphrase, (pubKey, priKey) => {
+				//alert("gen pub" +pubKey);
+				const 
+					{ iosocket } = SECLINK,
+					{ pubKeys, secure } = SECLINK.secureLink = {
+						secure: 
+							// allow only us gov and totem accts
+							(ioClient.endsWith(".mil") || ioClient.endsWith("@totem.org")) && !ioClient.match(/\.ctr@.*\.mil/),				
+						passphrase: passphrase,
+						pubKeys: {},
+						priKey: priKey,
+						clients: 1,
+						history: [],
+						lookups: {
+							$me: ioClient,
+							$strike: `fire the death ray now Mr. president=>$president=>$commanders`,
+							$president: `!brian.d.james@comcast.net`,
+							$commanders: `brian.d.james@comcast.net,brian.d.james@comcast.net`,
+							$test: `this is a test and only a test=>!$me`,
+							$dogs: `Cats are small. Dogs are big. Cats like to chase mice. Dogs like to eat bones.=>!$me`,
+							$drugs: `The Sinola killed everyone in the town.#terror=>!$me`,
+						}
+					};
+
+				//alert("primed secureLink");
+				pubKeys[client] = pubKey;
+
+				iosocket.emit("login", {		// request permission to enter
+					client: ioClient,
+					pubKey: pubKey,
+				});	
+
+				Log(pubKey,priKey);
+				cb(secure);								
+			});
+
+		else
+			cb( false );
+
+	},
+
 	Sockets: cbs => {		//< Establish socket.io callbacks to the CRUD i/f 
+
 		function joinService(ip,location) {
-			function initSecureLink( passphrase, client, cb ) {
-				if ( passphrase && client && openpgp ) 
-					GenKeys( passphrase, (pubKey, priKey) => {
-						//alert("gen pub" +pubKey);
-						const 
-							{ iosocket, secureOff } = SECLINK,
-							{ pubKeys } = SECLINK.secureLink = {
-								passphrase: passphrase,
-								pubKeys: {},
-								priKey: priKey,
-								clients: 1,
-								history: [],
-								lookups: {
-									$me: ioClient,
-									$strike: `fire the death ray now Mr. president=>$president=>$commanders`,
-									$president: `!brian.d.james@comcast.net`,
-									$commanders: `brian.d.james@comcast.net,brian.d.james@comcast.net`,
-									$test: `this is a test and only a test=>!$me`,
-									$dogs: `Cats are small. Dogs are big. Cats like to chase mice. Dogs like to eat bones.=>!$me`,
-									$drugs: `The Sinola killed everyone in the town.#terror=>!$me`,
-								}
-							};
-
-						//alert("primed secureLink");
-						pubKeys[client] = pubKey;
-
-						iosocket.emit("login", {		// request permission to enter
-							client: ioClient,
-							pubKey: pubKey,
-						});	
-
-						Log(pubKey,priKey);
-						cb(secureOff);								
-					});
-
-				else
-					cb( true );
-			}
-
 			function displayNotice(req,msg) {
+				const
+					{ secureLink } = SECLINK;
+				
 				if ( msg.startsWith("??") ) {
 					info.innerHTML = msg.substr(2);
 					notice.size = 5;
@@ -707,6 +607,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 									}, "GET", req.callback) ) {
 							case "pass":
 								tick.value = 666;		// signal halt
+								//alert("pass");
 								break;
 
 							case "fail":
@@ -718,12 +619,16 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					},
 					tick.value = req.timeout;
 					tries.value = req.retries;
+					tick.style.display = "span";
+					tries.style.display = "span";
 					
 					const
 						Fuse = setInterval( function () {
 							if ( tick.value > 600 ) {
 								clearInterval(Fuse);
-								info.innerHTML = "";
+								info.innerHTML = Object.keys(secureLink.pubKeys).pocs("Totem");
+								tick.style.display = "none";
+								tries.style.display = "none";
 								notice.size = 75;
 								notice.value = "Welcome";
 								notice.onchange="notice_signal()";
@@ -749,26 +654,20 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 						t = new Date(),
 						tstamp = t.toDateString() + " " + t.toLocaleTimeString();
 
-					notice.value = msg + "<=" + req.from + " on " + tstamp;
+					notice.value = req.from ? msg + "<=" + req.from + " on " + tstamp : msg;
 					secureLink.history.push( notice.value );
 				}
 			}
 
 			Join( ip, location, Copy({		// join totem's socket.io manager
 
-				/*
-				challenge: req => {		// trap client with a challenge
-					Trap(req, () => {			
-						initSecureLink( req.passphrase, ioClient, secureOff => {
-							notice.value = ioClient + " " + (secureOff?"insecure":"secure");
-						});
-					});
-				}, */
-
 				start: req => {		// start secure link with supplied passphrase
 					//alert("secure link: "+req.passphrase);
-					initSecureLink( req.passphrase, ioClient, secureOff => {
-						//notice.value = ioClient + " " + (secureOff?"insecure":"secure");
+					initSecureLink( req.passphrase, ioClient, secure => {
+						notice.value = `Welcome ${ioClient}`;
+						lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
+						info.innerHTML = Object.keys(secureLink.pubKeys).pocs("Totem");
+						
 						displayNotice( req, req.message );
 					});
 				},
@@ -796,7 +695,8 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					Log("sync", req);
 
 					secureLink.pubKeys[from] = message;
-					count.value = parseInt(count.value)+1;
+					//tick.value = Object.keys(secureLink.pubKeys).length+" on";
+					//info.innerHTML = Object.keys(secureLink.pubKeys).pocs("Totem");
 					//alert( `added pubkey from ${from} to ${to}` );
 				},
 
@@ -826,10 +726,10 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 		}
 		
 		const
-			{ probeClient } = SECLINK,
+			{ probeClient, initSecureLink } = SECLINK,
 			notice = document.getElementById("notice"),
 			scroll = document.getElementById("scroll"),
-			count = document.getElementById("count"),
+			lock = document.getElementById("lock"),
 			info = document.getElementById("info"),
 			tick = document.getElementById("tick"),
 			tries = document.getElementById("tries");
@@ -845,6 +745,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 		
 		else		// join with defaults
 			joinService( "0.0.0.0", "not provided" );
+
 	},
 		
 	//============ general purpose data testing and output
@@ -1429,6 +1330,15 @@ Array.prototype.Extend = function (con) {
 		const args = this;
 		args.forEach( (arg,i) => cb( i, args )  );
 		return args;
+	},
+	
+	function pocs(subj) {
+		return this
+			.map( name => name
+							.tag("a",{href:`emailto:${name}?subject=${subj}`})
+							.tag("option",{value:name}) )
+			.join("")
+			.tag("select") 
 	}
 ].Extend(Array);
 
