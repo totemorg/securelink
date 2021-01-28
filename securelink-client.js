@@ -11,7 +11,7 @@
 				
 		+ service interface (Ajax)
 		
-		+ SecureLink and dbSync sockets (Kill, Sockets, Send, Admit, Join, Trap)
+		+ SecureLink and dbSync sockets (Kill, Sockets, Send, Join)
 		
 		+ dom rendering (Render, Uncomment, Active) per [the skinning guide](/skinguide.view)
 		
@@ -24,6 +24,38 @@
 
 //============= notice actions (defined by the site skin) that support the SecureIntercom (socket.io/openpgp)
 
+
+function notice_login() {
+	const
+		{ secureLink,bang } = SECLINK,
+		notice = document.getElementById("notice");
+	
+	if ( notice.value.startsWith(bang) ) {
+		const
+			{acct,pass} = notice.value.substr(bang.length).split("/");
+		
+		notice.value = Ajax({
+				account: acct,
+				password: pass
+			}, "GET", "/login.json" );
+		
+		if (notice.value.indexOf("is good till")>0 ) {
+			var
+				now = new Date(),
+				expireDate = now;
+
+			expireDate.setDate( now.getDate() + 1 );
+			
+			document.cookie = `client=${acct}; expires=${expireDate}`;
+			log(document.cookie);
+		}
+	}
+		
+	else
+		alert(`supply ${bang}login/password`);
+			
+}
+
 function notice_scroll() {
 	const
 		{ secureLink } = SECLINK,
@@ -35,11 +67,11 @@ function notice_scroll() {
 
 function notice_save() {
 	const
-		{ secureLink,iosocket,passHistory } = SECLINK,
+		{ secureLink,iosocket,bang } = SECLINK,
 		notice = document.getElementById("notice");
 	
-	if ( notice.value.startsWith(passHistory) )
-		Encode( notice.value.substr(passHistory.length), JSON.stringify(secureLink.history), msg => {
+	if ( notice.value.startsWith(bang) )
+		Encode( notice.value.substr(bang.length), JSON.stringify(secureLink.history), msg => {
 			//alert("encoded=" + msg);
 			iosocket.emit("store", {
 				client: ioClient,
@@ -48,22 +80,22 @@ function notice_save() {
 		});
 	
 	else
-		alert("supply !!encryption password");
+		alert(`supply ${bang}encryption password`);
 	
 }
 
 function notice_load() {
 	const
-		{ secureLink,iosocket,passHistory } = SECLINK,
+		{ secureLink,iosocket,bang } = SECLINK,
 		notice = document.getElementById("notice");
 	
-	if ( notice.value.startsWith(passHistory) )
+	if ( notice.value.startsWith(bang) )
 		iosocket.emit("restore", {
 			client: ioClient
 		});
 	
 	else
-		alert("supply !!encryption password");
+		alert(`supply ${bang}encryption password`);
 }
 
 function notice_secure() {
@@ -83,10 +115,7 @@ function notice_delete() {
 
 function notice_signal() {		//< send secure notice message to server
 	const
-		toInsecure = "!";
-	
-	const
-		{ secureLink, iosocket, secureOff } = SECLINK;
+		{ bang, secureLink, iosocket, secureOff } = SECLINK;
 
 	if ( !secureLink ) { 
 		alert("SecureLink never connected");
@@ -157,9 +186,9 @@ function notice_signal() {		//< send secure notice message to server
 					iosocket.emit("relay", {		// send raw message
 						message: msg,
 						from: ioClient,
-						to: to.startsWith(toInsecure) ? to.substr(toInsecure.length) : to,
+						to: to.startsWith(bang) ? to.substr(bang.length) : to,
 						route: route.slice(2),
-						insecureok: secureOff || to.startsWith(toInsecure)
+						insecureok: secureOff || to.startsWith(bang)
 					});
 			}
 
@@ -196,7 +225,7 @@ function notice_signal() {		//< send secure notice message to server
 const {
 	GenKeys, Encrypt, Decrypt, Signal, Encode, Decode,
 	Copy, Each, Log, 
-	Kill, Sockets, Ajax, Send, Admit, Join, Trap, Pretty,
+	Kill, Sockets, Ajax, Send, Join, Pretty,
 	isString, isArray, isFunction, isDate, isNumber, isError, typeOf, 
 	Render, Uncomment, Activate} = SECLINK = {
 	
@@ -298,7 +327,13 @@ const {
 	agent: null,
 	platform: "",
 		
-	passHistory: "!!",
+	bootoff: 
+`
+Consider logging in to avoid the bot catcher. <br>
+Thank you for helping Totem protect its war fighters from bad data. <br><br>
+`,
+
+	bang: "!!",
 	secureOff: !(ioClient.endsWith(".mil") || ioClient.endsWith("@totem.org")) || ioClient.match(/\.ctr@.*\.mil/),
 
 	//========== Text encoding and decoding functions to support socket.io/openpgp secure link
@@ -440,7 +475,8 @@ const {
 	},
 
 	//============ socket.io support functions
-		
+	
+	/*
 	Admit: function Admit(name,data) {		//< callback cb("ok") if form was accepted 
 		const
 			form = window.document.forms.namedItem(name),
@@ -448,17 +484,26 @@ const {
 			tick = window.document.getElementById("tick"),
 			tries = window.document.getElementById("tries");
 		
-		//alert("admit>>>"+res);
-		if ( res == "pass" ) {
-			tick.value = 666;		// signal halt
-		}
-		
-		else {
-			tick.value = 0;
-			tries.value --;
+		alert("admit>>>"+res);
+		switch ( res ) {
+			case "pass":
+				tick.value = 666;		// signal halt
+				break;
+				
+			case "fail":
+			case "retry":
+				tick.value = 0;
+				tries.value --;
+				break;
+				
+			default:
+				alert("set cookie"+res);
+				var json = JSON.parse(res);
+				console.log("cookie", json);
 		}
 	},
-
+	*/
+		
 	Join: (ip,location,cbs) => {		//< Request connection with socket.io
 		
 		if ( io ) {		//	socket.io supported
@@ -489,6 +534,7 @@ const {
 		
 	},
 
+	/*
 	Trap: (req,cb) => {		//< trap client with an antibot query
 		const
 			kill = 666,
@@ -574,7 +620,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					}
 				}
 			}, step);
-	},
+	}, */
 
 	Pretty: x => {
 		
@@ -650,20 +696,80 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					cb( true );
 			}
 
+			function displayNotice(req,msg) {
+				if ( msg.startsWith("??") ) {
+					info.innerHTML = msg.substr(2);
+					notice.size = 5;
+					notice.onchange = () => {
+						switch ( Ajax({
+										guess: notice.value,
+										client: ioClient
+									}, "GET", req.callback) ) {
+							case "pass":
+								tick.value = 666;		// signal halt
+								break;
+
+							case "fail":
+							case "retry":
+								tick.value = 0;
+								tries.value --;
+								break;
+						}
+					},
+					tick.value = req.timeout;
+					tries.value = req.retries;
+					
+					const
+						Fuse = setInterval( function () {
+							if ( tick.value > 600 ) {
+								clearInterval(Fuse);
+								info.innerHTML = "";
+								notice.size = 75;
+								notice.value = "Welcome";
+								notice.onchange="notice_signal()";
+							}
+
+							else {
+								tick.value--;
+								if ( tick.value <= 0 ) {
+									tick.value = req.timeout;
+									tries.value--;
+									if ( tries.value <= 0 ) {
+										clearInterval(Fuse);
+										//document.write( "Goodbye" );
+										Kill( SECLINK.bootoff );
+									}
+								}
+							}
+						}, 1e3 );
+				}
+
+				else {
+					const
+						t = new Date(),
+						tstamp = t.toDateString() + " " + t.toLocaleTimeString();
+
+					notice.value = msg + "<=" + req.from + " on " + tstamp;
+					secureLink.history.push( notice.value );
+				}
+			}
+
 			Join( ip, location, Copy({		// join totem's socket.io manager
 
+				/*
 				challenge: req => {		// trap client with a challenge
 					Trap(req, () => {			
 						initSecureLink( req.passphrase, ioClient, secureOff => {
 							notice.value = ioClient + " " + (secureOff?"insecure":"secure");
 						});
 					});
-				},
+				}, */
 
-				secure: req => {		// start secure link with supplied passphrase
+				start: req => {		// start secure link with supplied passphrase
 					//alert("secure link: "+req.passphrase);
 					initSecureLink( req.passphrase, ioClient, secureOff => {
-						notice.value = ioClient + " " + (secureOff?"insecure":"secure");
+						//notice.value = ioClient + " " + (secureOff?"insecure":"secure");
+						displayNotice( req, req.message );
 					});
 				},
 
@@ -695,17 +801,6 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				},
 
 				relay: req => {			// accept message or public key
-					function dump(req,msg) {
-						const
-							t = new Date(),
-							tstamp = t.toDateString() + " " + t.toLocaleTimeString();
-
-						notice.value = msg + "<=" + req.from + " on " + tstamp;
-						//alert("recovered="+msg);
-						secureLink.history.push( notice.value );
-						//scroll.max = secureLink.history.length;
-					}
-
 					const
 						{ secureLink } = SECLINK,
 						{ from,to,message,score } = req,
@@ -716,14 +811,14 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					if ( forMe )
 						if ( secureLink.passphrase && message.indexOf("BEGIN PGP MESSAGE")>=0 )
 							Decrypt( secureLink.passphrase, message, secureLink.pubKeys[ioClient], secureLink.priKey, 
-									msg => dump(req,msg) );
+									msg => displayNotice(req,msg) );
 
 						else
-							dump(req, message + "  " + (score?Pretty(score):"") );
+							displayNotice(req, message + "  " + (score?Pretty(score):"") );
 
 					else
 					if ( (from==ioClient) && !secureLink.pubKeys[to] )	// not for me, but outside ecosystem and I generated it
-						dump(req, message + "  " + (score?Pretty(score):"") );
+						displayNotice(req, message + "  " + (score?Pretty(score):"") );
 				},
 
 				status: req => notice.value = req.message
@@ -734,8 +829,11 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			{ probeClient } = SECLINK,
 			notice = document.getElementById("notice"),
 			scroll = document.getElementById("scroll"),
-			count = document.getElementById("count");
-		
+			count = document.getElementById("count"),
+			info = document.getElementById("info"),
+			tick = document.getElementById("tick"),
+			tries = document.getElementById("tries");
+
 		if ( probeClient ) 
 			try {
 				probeClient( (ip,location) => joinService(ip,location) );

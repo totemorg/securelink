@@ -113,7 +113,7 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 		getRiddle: "SELECT * FROM openv.riddles WHERE ? LIMIT 1",
 	},
 	
-	admitClient: (client,guess,res) => {
+	testClient: (client,guess,res) => {
 			
 		const
 			{ getRiddle }= sqls;
@@ -278,7 +278,7 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 								riddles = [],
 								probe = makeRiddles( Message, riddles, profile );
 
-							Log(client, probe, riddles);
+							//Log("riddle", client, probe, riddles);
 
 							sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
 								Riddle: riddles.join(",").replace(/ /g,""),
@@ -287,7 +287,7 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 								Attempts: 0,
 								maxAttempts: Retries
 							}, (err,info) => cb({		// send challenge to client
-								message: probe,
+								message: "??"+probe,
 								retries: Retries,
 								timeout: Timeout,
 								callback: riddler,
@@ -304,18 +304,19 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 								});
 
 							else
-							if ( prof.Challenge )	// must solve challenge to enter
-								getChallenge(prof, riddle => {
-									Log(riddle);
-									socket.emit("challenge", riddle);
-								});
-
-							else
 							if ( prof.SecureCom )	// allowed to use secure link
-								socket.emit("secure", {
-									message: `Welcome ${client}`,
-									passphrase: prof.SecureCom
-								});
+								if ( prof.Challenge )	// must solve challenge to enter
+									getChallenge(prof, riddle => {
+										Log("start challenge", riddle);
+										//socket.emit("challenge", riddle);
+										socket.emit("start", riddle);
+									});
+							
+								else
+									socket.emit("start", {
+										message: `Welcome ${client}`,
+										passphrase: prof.SecureCom
+									});
 
 							else		// not allowed to use secure link
 								socket.emit("status", {
