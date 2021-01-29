@@ -134,8 +134,11 @@ function notice_signal() {		//< send secure notice message to server
 		notice = document.getElementById("notice"),
 		upload = document.getElementById("upload");
 	
-	if ( notice.value.startsWith("!!") ) return;	// not for me - for a notice control
-
+	if ( notice.value.startsWith("!!") ) {		// not for me - for a notice control
+		//alert( `Submit ${bang}option with appropriate control` );
+		return;	
+	}
+	
 	//Log(secureLink, iosocket, secure);
 
 	const
