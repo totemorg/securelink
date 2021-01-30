@@ -45,11 +45,11 @@ function notice_login() {
 				ioClient = login.message;
 				document.cookie = login.cookie; 
 			
-				alert(login.cookie);
-				initSecureLink( login.passphrase, ioClient, secure => {
+				//alert(login.cookie);
+				initSecureLink( login.passphrase, ioClient, (secure,pubKeys) => {
 					notice.value = `Welcome ${ioClient}`;
 					lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
-					info.innerHTML = Object.keys(secureLink.pubKeys).pocs("Totem");
+					info.innerHTML = Object.keys(pubKeys).pocs("Totem");
 				}); 
 			}
 			
@@ -241,7 +241,7 @@ const {
 	isString, isArray, isFunction, isDate, isNumber, isError, typeOf, 
 	Render, Uncomment, Activate} = SECLINK = {
 	
-	probeClient: ioClient.endsWith(".mil") ? null : cb => {
+	probeClient: true ? null : cb => {
 		
 		// Discover client IP addresses 
 		function probeIPs(callback) {
@@ -586,11 +586,8 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				});	
 
 				Log(pubKey,priKey);
-				cb(secure);								
+				cb(secure,pubKeys);								
 			});
-
-		else
-			cb( false );
 
 	},
 
@@ -667,10 +664,10 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 
 				start: req => {		// start secure link with supplied passphrase
 					//alert("secure link: "+req.passphrase);
-					initSecureLink( req.passphrase, ioClient, secure => {
+					initSecureLink( req.passphrase, ioClient, (secure,pubKeys) => {
 						notice.value = `Welcome ${ioClient}`;
 						lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
-						info.innerHTML = Object.keys(secureLink.pubKeys).pocs("Totem");
+						info.innerHTML = Object.keys(pubKeys).pocs("Totem");
 						
 						displayNotice( req, req.message );
 					});
