@@ -43,8 +43,9 @@ function notice_login() {
 			
 			if ( login.cookie ) {
 				ioClient = login.message;
-				document.cookie = login.cookie;
+				document.cookie = login.cookie; 
 			
+				alert(login.cookie);
 				initSecureLink( login.passphrase, ioClient, secure => {
 					notice.value = `Welcome ${ioClient}`;
 					lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
@@ -1338,7 +1339,7 @@ Array.prototype.Extend = function (con) {
 	function pocs(subj) {
 		return this
 			.map( name => name
-							.tag("a",{href:`emailto:${name}?subject=${subj}`})
+							.tag("a",{href:`mailto:${name}?subject=${subj}`})
 							.tag("option",{value:name}) )
 			.join("")
 			.tag("select") 
