@@ -46,7 +46,7 @@ function notice_login() {
 				document.cookie = login.cookie; 
 			
 				//alert(login.cookie);
-				initSecureLink( login.passphrase, ioClient, (secure,pubKeys) => {
+				initSecureLink( login.passphrase, (secure,pubKeys) => {
 					notice.value = `Welcome ${ioClient}`;
 					lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
 					info.innerHTML = Object.keys(pubKeys).pocs("Totem");
@@ -241,10 +241,10 @@ const {
 	isString, isArray, isFunction, isDate, isNumber, isError, typeOf, 
 	Render, Uncomment, Activate} = SECLINK = {
 	
-	probeClient: true ? null : cb => {
+	probeClient: cb => {
 		
 		// Discover client IP addresses 
-		function probeIPs(callback) {
+		function probeIPs(callback) {		// legacy
 			var ip_dups = {};
 
 			//compatibility for firefox and chrome
@@ -326,7 +326,8 @@ const {
 				});
 		}
 		
-		probeIPs( ip => probeLocation( location => cb( ip, location ) ) );
+		//probeIPs( ip => probeLocation( location => cb( ip, location ) ) );
+		probeLocation( location => cb( "nada", location ) );
 	},
 	probePlatform: io,
 	probeAgent: io,
@@ -487,10 +488,10 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 
 	//============ socket.io support functions
 	
-	Join: (ip,location,cbs) => {		//< Request connection with socket.io
+	Join: (location,cbs) => {		//< Request connection with socket.io
 		
 		if ( io ) {		//	socket.io supported
-			Log("join: client="+ioClient+" ip="+ip+" location="+location+" url="+window.location);
+			//Log("join: client="+ioClient+" location="+location+" url="+window.location);
 			
 			const
 				iosocket = SECLINK.iosocket = io(); // io({transports: ["websocket"] });  // for buggy socket.io
@@ -504,7 +505,6 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			iosocket.emit("join", {		// request permission to enter
 				client: ioClient,
 				message: "can I join please?",
-				ip: ip,
 				location: location,
 				agent: SECLINK.agent,
 				platform: SECLINK.platform,
@@ -550,17 +550,16 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			return "null";
 	},
 	
-	initSecureLink: ( passphrase, client, cb ) => {
+	initSecureLink: ( passphrase, cb ) => {
 
-		if ( passphrase && client && openpgp ) 
+		if ( passphrase && ioClient && openpgp ) 
 			GenKeys( passphrase, (pubKey, priKey) => {
-				//alert("gen pub" +pubKey);
 				const 
 					{ iosocket } = SECLINK,
 					{ pubKeys, secure } = SECLINK.secureLink = {
-						secure: 
+						secure: true,
 							// allow only us gov and totem accts
-							(ioClient.endsWith(".mil") || ioClient.endsWith("@totem.org")) && !ioClient.match(/\.ctr@.*\.mil/),				
+							// (ioClient.endsWith(".mil") || ioClient.endsWith("@totem.org")) && !ioClient.match(/\.ctr@.*\.mil/),				
 						passphrase: passphrase,
 						pubKeys: {},
 						priKey: priKey,
@@ -577,8 +576,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 						}
 					};
 
-				//alert("primed secureLink");
-				pubKeys[client] = pubKey;
+				pubKeys[ioClient] = pubKey;
 
 				iosocket.emit("login", {		// request permission to enter
 					client: ioClient,
@@ -588,12 +586,15 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				Log(pubKey,priKey);
 				cb(secure,pubKeys);								
 			});
+		
+		else
+			cb(false, {});
 
 	},
 
 	Sockets: cbs => {		//< Establish socket.io callbacks to the CRUD i/f 
 
-		function joinService(ip,location) {
+		function joinService(location) {
 			function displayNotice(req,msg) {
 				const
 					{ secureLink } = SECLINK;
@@ -660,11 +661,12 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				}
 			}
 
-			Join( ip, location, Copy({		// join totem's socket.io manager
+			Join( location, Copy({		// join totem's socket.io manager
 
+				close: req => alert("secureLink closed!"),
+				
 				start: req => {		// start secure link with supplied passphrase
-					//alert("secure link: "+req.passphrase);
-					initSecureLink( req.passphrase, ioClient, (secure,pubKeys) => {
+					initSecureLink( req.passphrase, (secure,pubKeys) => {
 						notice.value = `Welcome ${ioClient}`;
 						lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
 						info.innerHTML = Object.keys(pubKeys).pocs("Totem");
@@ -735,17 +737,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			tick = document.getElementById("tick"),
 			tries = document.getElementById("tries");
 
-		if ( probeClient ) 
-			try {
-				probeClient( (ip,location) => joinService(ip,location) );
-			}
-		
-			catch (err) {
-				joinService( "0.0.0.0", "not provided" );
-			}
-		
-		else		// join with defaults
-			joinService( "0.0.0.0", "not provided" );
+		probeClient( (ip,location) => joinService(ip,location) );
 
 	},
 		

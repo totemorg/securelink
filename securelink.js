@@ -307,7 +307,7 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 							if ( prof.SecureCom )	// allowed to use secure link
 								if ( prof.Challenge )	// must solve challenge to enter
 									getChallenge(prof, riddle => {
-										Log("start challenge", riddle);
+										Log("challenge", riddle);
 										//socket.emit("challenge", riddle);
 										socket.emit("start", riddle);
 									});
@@ -319,8 +319,9 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 									});
 
 							else		// not allowed to use secure link
-								socket.emit("status", {
-									message: `Welcome ${client}`
+								socket.emit("start", {
+									message: `Welcome ${client}`,
+									passphrase: ""
 								});
 						}
 
