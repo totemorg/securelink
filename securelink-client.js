@@ -35,7 +35,8 @@ function notice_login() {
 	if ( notice.value.startsWith(bang) ) 
 		try {
 			const
-				[acct,pass] = notice.value.substr(bang.length).split("/");
+				{ pubKeys } = SECLINK,
+				[acct,pass] = notice.value.substr(bang.length).split("/"),
 				login = JSON.parse( Ajax({
 					account: acct,
 					password: pass
@@ -46,7 +47,7 @@ function notice_login() {
 				document.cookie = login.cookie; 
 			
 				//alert(login.cookie);
-				initSecureLink( login.passphrase, (secure,pubKeys) => {
+				initSecureLink( login.passphrase, secure => {
 					notice.value = `Welcome ${ioClient}`;
 					lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
 					info.innerHTML = Object.keys(pubKeys).pocs("Totem");
@@ -143,7 +144,8 @@ function notice_signal() {		//< send secure notice message to server
 	//Log(secureLink, iosocket, secure);
 
 	const
-		{ pubKeys, priKey, passphrase, lookups } = secureLink;
+		{ pubKeys } = SECLINK,
+		{ priKey, passphrase, lookups } = secureLink;
 
 	//Log(pubKeys, priKey);
 
@@ -209,8 +211,8 @@ function notice_signal() {		//< send secure notice message to server
 					send(msg,ioClient);
 					break;
 
-				case "all":
-					Each( secureLink.pubKeys, to => send(msg,to) );
+				case "$all":
+					Each( pubKeys, to => send(msg,to) );
 					break;
 
 				default:
@@ -241,6 +243,8 @@ const {
 	isString, isArray, isFunction, isDate, isNumber, isError, typeOf, 
 	Render, Uncomment, Activate} = SECLINK = {
 	
+	pubKeys: {},
+		
 	probeClient: cb => {
 		
 		// Discover client IP addresses 
@@ -555,13 +559,13 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 		if ( passphrase && ioClient && openpgp ) 
 			GenKeys( passphrase, (pubKey, priKey) => {
 				const 
-					{ iosocket } = SECLINK,
-					{ pubKeys, secure } = SECLINK.secureLink = {
+					{ iosocket, pubKeys } = SECLINK,
+					{ secure } = SECLINK.secureLink = {
 						secure: true,
 							// allow only us gov and totem accts
 							// (ioClient.endsWith(".mil") || ioClient.endsWith("@totem.org")) && !ioClient.match(/\.ctr@.*\.mil/),				
 						passphrase: passphrase,
-						pubKeys: {},
+						//pubKeys: {},
 						priKey: priKey,
 						clients: 1,
 						history: [],
@@ -584,7 +588,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				});	
 
 				Log(pubKey,priKey);
-				cb(secure,pubKeys);								
+				cb(secure);								
 			});
 		
 		else
@@ -628,7 +632,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 						Fuse = setInterval( function () {
 							if ( tick.value > 600 ) {
 								clearInterval(Fuse);
-								info.innerHTML = Object.keys(secureLink.pubKeys).pocs("Totem");
+								info.innerHTML = Object.keys(pubKeys).pocs("Totem");
 								tick.style.display = "none";
 								tries.style.display = "none";
 								notice.size = 75;
@@ -666,7 +670,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				close: req => alert("secureLink closed!"),
 				
 				start: req => {		// start secure link with supplied passphrase
-					initSecureLink( req.passphrase, (secure,pubKeys) => {
+					initSecureLink( req.passphrase, secure => {
 						notice.value = `Welcome ${ioClient}`;
 						lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
 						info.innerHTML = Object.keys(pubKeys).pocs("Totem");
@@ -697,9 +701,9 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 
 					Log("sync", req);
 
-					secureLink.pubKeys[from] = message;
-					//tick.value = Object.keys(secureLink.pubKeys).length+" on";
-					//info.innerHTML = Object.keys(secureLink.pubKeys).pocs("Totem");
+					pubKeys[from] = message;
+					Log("pubkeys",pubKeys);
+					info.innerHTML = Object.keys(pubKeys).pocs("Totem");
 					//alert( `added pubkey from ${from} to ${to}` );
 				},
 
@@ -713,14 +717,14 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 
 					if ( forMe )
 						if ( secureLink.passphrase && message.indexOf("BEGIN PGP MESSAGE")>=0 )
-							Decrypt( secureLink.passphrase, message, secureLink.pubKeys[ioClient], secureLink.priKey, 
+							Decrypt( secureLink.passphrase, message, pubKeys[ioClient], secureLink.priKey, 
 									msg => displayNotice(req,msg) );
 
 						else
 							displayNotice(req, message + "  " + (score?Pretty(score):"") );
 
 					else
-					if ( (from==ioClient) && !secureLink.pubKeys[to] )	// not for me, but outside ecosystem and I generated it
+					if ( (from==ioClient) && !pubKeys[to] )	// not for me, but outside ecosystem and I generated it
 						displayNotice(req, message + "  " + (score?Pretty(score):"") );
 				},
 
@@ -729,7 +733,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 		}
 		
 		const
-			{ probeClient, initSecureLink } = SECLINK,
+			{ probeClient, pubKeys, initSecureLink } = SECLINK,
 			notice = document.getElementById("notice"),
 			scroll = document.getElementById("scroll"),
 			lock = document.getElementById("lock"),
@@ -1327,7 +1331,7 @@ Array.prototype.Extend = function (con) {
 	
 	function pocs(subj) {
 		return this
-			.map( name => name
+			.map( (name,i) => `$${i} ${name}`
 							.tag("a",{href:`mailto:${name}?subject=${subj}`})
 							.tag("option",{value:name}) )
 			.join("")

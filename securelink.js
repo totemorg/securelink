@@ -452,8 +452,10 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 						"UPDATE openv.profiles SET pubKey=? WHERE Client=?",
 						[pubKey,client] );
 
+					if (0)
 					sql.query( "SELECT Client,pubKey FROM openv.profiles WHERE Client!=? AND length(pubKey)", [client] )
 					.on("result", rec => {
+						Log("##### send sync to me");
 						socket.emit("sync", {	// broadcast other pubKeys to this client
 							message: rec.pubKey,
 							from: rec.Client,
@@ -462,6 +464,7 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 					});
 				});							
 
+				//Log("************** broadcast pubKey to all", pubKey);
 				IO.emit("sync", {	// broadcast client's pubKey to everyone
 					message: pubKey,
 					from: client,
