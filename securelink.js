@@ -11,6 +11,7 @@
 */
 
 const		// globals
+	ENV = process.env,
 	CRYPTO = require("crypto");	
 
 const
@@ -22,7 +23,7 @@ const
 	// For working socketio
 	SIO = require("socketio");
 
-const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
+const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	
 	Log: (...args) => console.log(">>>secLink",args),
 	
@@ -94,7 +95,9 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 		return tar;
 	},
 	
-	sqlThread: () => { throw new Error("sqlThread() not configured"); },
+	sqlThread: () => { throw new Error("no sqlThread"); },
+	
+	sendMail: opts => Log("no sendMail", opts),
 	
 	challenge: {	//< for antibot client challenger 
 		extend: 0,
@@ -105,12 +108,246 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 	},
 	
 	server: null,
+	
 	inspector: (doc,to,cb) => { throw new Error("inspector() not configured"); },
 	
 	sqls: {
+		addProfile: "INSERT INTO openv.profiles SET ?",
 		getProfile: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
 		addSession: "INSERT INTO openv.sessions SET ?",
 		getRiddle: "SELECT * FROM openv.riddles WHERE ? LIMIT 1",
+		
+		getAccount:	"SELECT pubKey, Trusted, validEmail, Banned, aes_decrypt(unhex(Password),?) AS Password, SecureCom FROM openv.profiles WHERE Client=?", 
+		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
+		setPassword: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,Password),''), SessionID=null WHERE SessionID=?",
+		//getToken: "SELECT Client FROM openv.profiles WHERE TokenID=? AND Expires>now()", 
+		//addToken: "UPDATE openv.profiles SET TokenID=? WHERE Client=?",
+		getSession: "SELECT * FROM openv.profiles WHERE SessionID=? AND Expires>now() LIMIT 1",
+		addSession: "UPDATE openv.profiles SET Online=1, SessionID=? WHERE Client=?",
+		endSession: "UPDATE openv.profiles SET Online=0, SessionID=null WHERE Client=?",		
+	},
+	
+	isTrusted: account => true,
+	
+	Login: (account,password,cb) => {
+		function passwordOk(pass) {
+			return (pass.length >= 4);
+		}
+
+		function accountOk(acct) {
+			const
+				banned = {
+					"tempail.com": 1,
+					"temp-mail.io":1,
+					"anonymmail.net":1,
+					"mail.tm": 1,
+					"tempmail.ninja":1,
+					"getnada.com":1,
+					"protonmail.com":1,
+					"maildrop.cc":1,
+					"":1,
+				},
+
+				[account,domain] = acct.split("@");
+
+			return banned[domain] ? false : true;
+		}
+
+		function getExpires( expire ) {
+			const
+				{ round, random } = Math,
+				[min,max] = expire,
+				expires = new Date();
+
+			expires.setDate( expires.getDate() + min + round(random()*max) );
+			return expires;
+		}
+
+		function genPassword( cb ) {
+			genCode(passwordLen, code => cb(code, getExpires(expireSession)) );
+		}
+
+		function genCode ( len, cb ) {
+			return CRYPTO.randomBytes( len/2, (err, code) => cb( code.toString("hex") ) );
+		}
+
+		function newAccount( sql, account, password, expires, cb) {
+			const
+				trust = isTrusted( account );
+
+			sql.query(
+				addAccount,
+				[ prof = {
+					Banned: "",  // nonempty to ban user
+					QoS: 10,  // [secs] job regulation interval
+					Credit: 100,  // job cred its
+					Charge: 0,	// current job charges
+					LikeUs: 0,	// number of user likeus
+					Trusted: trust,
+					Expires: expires,
+					//Password: "",	
+					//SecureCom: trust ? account : "",	// default securecom passphrase
+					Challenge: !trust,		// enable to challenge user at session join
+					Client: account,
+					User: "",		// default user ID (reserved for login)
+					Login: "",	// existing login ID
+					Group: "app",		// default group name (db to access)
+					Repoll: true,	// challenge repoll during active sessions
+					Retries: 5,		// challenge number of retrys before session killed
+					Timeout: 30,	// challenge timeout in secs
+					Message: `What is #riddle?`		// challenge message with riddles, ids, etc					Expires: getExpires( trust ? expireGuest : expirePerm ),
+				},  password, encryptionPassword, allowSecureConnect ], 	
+				(err,info) => {
+					//Log(err,prof);
+					Log("gen",err,account);
+					cb(err ? null : prof);
+				});
+		}
+
+		function genSession ( sql, account, cb ) {
+			genCode(sessionLen, code => {
+				sql.query(
+					addSession, 
+					[code,account], err => {
+
+						if ( err )	// has to be unqiue
+							genSession( sql, account, cb );
+
+						else cb( code, getExpires(expireSession) );
+				});
+			});
+		}
+
+		function genGuest( sql, password, expires, cb ) {
+			genCode(accountLen, code => {
+				//Log("gen guest", code);
+				newAccount( sql, "guest"+code+"@totem.org", password, expires, prof => {
+					//Log("madeacct", prof);
+					if ( prof )
+						cb( prof );
+
+					else 
+						genGuest( sql, password, expires, cb );
+				});
+			});
+		}
+
+		function genToken( sql, account, cb ) {
+			genCode(tokenLen, code => {
+				sql.query(
+					addSession, 
+					["reset"+code,account], err => {
+
+						if ( err )	// has to be unqiue
+							genToken( sql, account, cb );
+
+						else cb( code, getExpires(expireSession) );
+				});
+			});
+		}
+
+		const
+			expireGuest = [5,10],
+			expirePerm = [365,0],
+			expireSession = [1,0];
+
+		const
+			passwordPostfixLength = 4,
+			passwordLen = 4,
+			accountLen = 16,
+			sessionLen = 32,
+			tokenLen = 4;
+
+		const
+			{ isTrusted } = SECLINK,
+			{ addProfile, getAccount, addAccount, getSession, addSession, endSession, setPassword } = sqls,
+			encryptionPassword = ENV.USERS_PASS,
+			allowSecureConnect = true;	
+		
+		Log("login",[account,password]);
+		
+		sqlThread( sql => {
+			if ( cb.name == "resetPassword" ) 
+				genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
+					cb( `See your ${account} email for further instructions` );
+
+					sendMail({
+						to: account,
+						subject: "Totem password reset request",
+						text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
+					});
+				});
+			
+			else
+				sql.query(
+					getSession, 
+					[account], (err,profs) => {		// try to locate client by sessionID
+						if ( prof = profs[0] ) {
+							if ( account.startsWith("reset") )
+								if ( passwordOk(password) )
+									sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
+										Log("password reset", err);
+										if ( err ) 
+											cb( new Error( "Your password could not be reset at this time" ) );
+
+										else
+											cb( new Error( `You may login to ${prof.Client} using your new password.` ) );
+									});
+
+								else
+									cb( new Error( "password not complex enough" ) );
+
+							else
+								cb( null, prof );
+						}
+						
+						else	// not a session - try account
+						if ( account && getAccount )	// locate account by name
+							sql.query( getAccount, [encryptionPassword,account], (err,profs) => {		
+
+								if ( prof = profs[0] ) {			// account located
+									if ( prof.Banned ) 				// account was banned for some reason
+										cb(	new Error(prof.Banned) );
+
+									else
+									if ( prof.Online ) 				// account already online
+										cb( new Error( "account online" ) );
+
+									else
+									if ( prof.Expires < new Date() )		// account expired
+										cb( new Error( "account expired" ) );
+
+									else
+									if (password == prof.Password)	// account matched
+										switch (cb.name) {
+											case "newSession":
+												genSession( sql, account, (sessionID,expires) => cb({
+													id: sessionID, 
+													expires: expires, 
+													profile: prof
+												}) );
+												break;
+
+											default:
+												cb( null, prof );
+										}
+
+									else
+										cb( new Error( "bad account/password" ) );
+								}
+
+								else
+									cb( new Error("account not found") );
+							});
+
+						else 
+						if ( addAccount ) 				// allowing guest accounts
+							genGuest( sql, "", getExpires(expireGuest), prof => cb(null, prof) );
+
+						else
+							cb( new Error("login failed") );
+				});				
+		});
 	},
 	
 	testClient: (client,guess,res) => {
@@ -194,21 +431,21 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 		}
 		
 		const 
-			{ inspector, sqlThread, server, challenge } = Copy( opts, SECLINK, "." ),
+			{ inspector, sqlThread, sendMail, server, challenge } = Copy( opts, SECLINK, "." ),
 			{ getProfile, addSession } = sqls;
 
 		const
-			IO = SIO(server); /*{ // socket.io defaults but can override ...
+			IO = TOTEM.IO = SIO(server); /*{ // socket.io defaults but can override ...
 					//serveClient: true, // default true to prevent server from intercepting path
 					//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 				}),  */
 
 		Log("config socketio", IO.path() );
 
-		IO.on("connect", socket => {  	// listen to side channels 
+		IO.on("connect", socket => {  	// define side channel listeners 
 			Log("listening to side channels");
 
-			socket.on("join", req => {	// Traps client connect when they call io()
+			socket.on("join", (req,socket) => {	// Traps client connect when they call io()
 				Log("admit client", req);
 				const
 					{client,message,insecureok} = req;
@@ -334,7 +571,7 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 				}); 
 			});
 
-			socket.on("store", req => {
+			socket.on("store", (req,socket) => {
 				const
 					{client,ip,location,message} = req;
 
@@ -353,7 +590,7 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 				});
 			});
 
-			socket.on("restore", req => {
+			socket.on("restore", (req,socket) => {
 				const
 					{client,ip,location,message} = req;
 
@@ -378,7 +615,43 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 				});
 			});
 
-			socket.on("relay", req => {
+			socket.on("login", (req,socket) => {
+
+				const 
+					{ account, password, client } = req;
+				
+				Log("login", [account,password]);
+
+				if ( password == "reset" )
+					Login( client, "", function resetPassword(status) {
+						Log("pswd reset", status);
+						socket.emit("status", { 
+							message: status,
+						});
+					});
+				
+				else
+					Login( account, password || "", function newSession(ses) {
+						Log("session", ses);
+						socket.emit("status", { 
+							message: "Login completed",
+							client: account,
+							cookie: `session=${ses.id}; expires=${ses.expires.toUTCString()}`,
+							passphrase: ses.profile.SecureCom		// nonnull if account allowed to use secureLink
+						});
+
+					IO.emit("remove", {
+						client: client
+					});
+
+					IO.emit("accept", {
+						client: account,
+						pubKey: prof.pubKey,
+					}); 
+				});
+			});
+			
+			socket.on("relay", (req,socket) => {
 				const
 					{ from,message,to,insecureok,route } = req;
 
@@ -441,8 +714,9 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 
 			});
 
-			socket.on("login", req => {
-				Log("login client", req);
+			/*
+			socket.on("enter", req => {
+				Log("enter client", req);
 
 				const
 					{ client,pubKey } = req;
@@ -464,19 +738,26 @@ const { sqls, Each, Copy, Log } = SECLINK = module.exports = {
 					});
 				});							
 
-				//Log("************** broadcast pubKey to all", pubKey);
-				IO.emit("sync", {	// broadcast client's pubKey to everyone
+				/ *IO.emit("sync", {	// broadcast client's pubKey to everyone
 					message: pubKey,
 					from: client,
 					to: "all"
+				}); * /
+				IO.emit("accept", {	// broadcast client's pubKey to everyone
+					pubKey: pubKey,
+					client: client,
 				});
-			});
+				socket.emit("accept", {	// broadcast client's pubKey to everyone
+					pubKey: pubKey,
+					client: client,
+				});
+			});  */
 			
-			socket.on("exit", req => {
-				Log("exit caught");
+			socket.on("kill", (req,socket) => {
+				Log("kill", req);
+				
 				socket.end();
 			});
-			
 
 		});	
 

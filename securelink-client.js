@@ -20,6 +20,29 @@
 	@requires socketio
 	@requires openpgp
 	
+	Protocol
+	
+		client => service	=>		service => client				<=
+		/login?option=OPT	circuit	returns, does					circuit
+		===================================================================
+		login 				enter	{message,cookie,passphrase}		sync		
+		temp				{message}			
+		reset				{message}, email
+		logoff				{message}, broadcast
+		make				{message}, email
+		users				json
+		keys				json
+		logoff				json							leave
+		
+			client => service				service => client
+		=============================		==================
+		notice	| socketio	| SECLINK		broadcast
+		button	| circuit	| method		circuit
+		======================================================
+		signal	| relay		| Encrypt		relay
+		save	| store		| Encode		status
+		load	| restore	| Decode		content
+		signal	| relay		| Decrypt		relay
 */
 
 //============= notice actions (defined by the site skin) that support the SecureIntercom (socket.io/openpgp)
@@ -27,7 +50,7 @@
 function notice_login() {
 
 	const
-		{ secureLink,bang,initSecureLink } = SECLINK,
+		{ secureLink,bang,initSecureLink,iosocket } = SECLINK,
 		notice = document.getElementById("notice"),
 		lock = document.getElementById("lock"),
 		info = document.getElementById("info");
@@ -36,29 +59,17 @@ function notice_login() {
 		try {
 			const
 				{ pubKeys } = SECLINK,
-				[acct,pass] = notice.value.substr(bang.length).split("/"),
-				login = JSON.parse( Ajax({
-					account: acct,
-					password: pass
-				}, "GET", "/login.json" ) );
+				[acct,pass] = notice.value.substr(bang.length).split("/");
 			
-			if ( login.cookie ) {
-				ioClient = login.message;
-				document.cookie = login.cookie; 
-			
-				//alert(login.cookie);
-				initSecureLink( login.passphrase, secure => {
-					notice.value = `Welcome ${ioClient}`;
-					lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
-					info.innerHTML = Object.keys(pubKeys).pocs("Totem");
-				}); 
-			}
-			
-			else
-				notice.value = login.message;
+			iosocket.emit("login", {
+				account: acct,
+				password: pass,
+				client: ioClient
+			});
 		}
 	
 		catch (err) {
+			Log("login", err);
 			notice.value = "login failed";
 		}
 		
@@ -498,7 +509,8 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			//Log("join: client="+ioClient+" location="+location+" url="+window.location);
 			
 			const
-				iosocket = SECLINK.iosocket = io(); // io({transports: ["websocket"] });  // for buggy socket.io
+				iosocket = SECLINK.iosocket = io(); 	// issues a connect to socketio
+					// io({transports: ["websocket"] });  // for buggy socket.io
 
 			for (var action in cbs) 				// setup socket.io callbacks
 				iosocket.on(action, cbs[action]);
@@ -506,7 +518,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			//iosocket.on("connect", req => Log("connect", req, iosocket.id) );
 			//iosocket.on("disconnect", req => Log("disconnect", req,iosocket.id) );
 			
-			iosocket.emit("join", {		// request permission to enter
+			iosocket.emit("join", {		// request permission to join
 				client: ioClient,
 				message: "can I join please?",
 				location: location,
@@ -582,12 +594,12 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 
 				pubKeys[ioClient] = pubKey;
 
-				iosocket.emit("login", {		// request permission to enter
+				/*iosocket.emit("enter", {		// request permission to enter
 					client: ioClient,
 					pubKey: pubKey,
-				});	
+				});	 */
 
-				Log(pubKey,priKey);
+				Log("mykeys", pubKey,priKey);
 				cb(secure);								
 			});
 		
@@ -700,11 +712,9 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 						{ from,to,message } = req;
 
 					Log("sync", req);
-
 					pubKeys[from] = message;
-					Log("pubkeys",pubKeys);
+					
 					info.innerHTML = Object.keys(pubKeys).pocs("Totem");
-					//alert( `added pubkey from ${from} to ${to}` );
 				},
 
 				relay: req => {			// accept message or public key
@@ -728,12 +738,55 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 						displayNotice(req, message + "  " + (score?Pretty(score):"") );
 				},
 
-				status: req => notice.value = req.message
+				accept: req => {
+					Log("accept", req);
+					const {client,pubKey} = req;
+						pubKeys[client] = pubKey;
+						info.innerHTML = Object.keys(pubKeys).pocs("Totem");	
+					if ( client != "guest@totem.org" ) {
+					}
+				},
+				
+				remove: req => {
+					Log("remove",req);
+					const {client} = req;
+						delete pubKeys[client];
+						info.innerHTML = Object.keys(pubKeys).pocs("Totem");
+					if ( client != "guest@totem.org" ) {
+					}
+				},
+				
+				status: req => {
+					
+					Log("status", req);
+					
+					if ( req.cookie ) {
+						//iosocket.emit("disconnect");
+						
+						//ioClient = req.client;
+						document.cookie = req.cookie; 
+
+						//alert(req.client + " " + req.cookie);
+						//alert(document.cookie);
+						//alert(window.location+"");
+						window.open(window.location+"", "_self");
+						if (0)
+						initSecureLink( req.passphrase, secure => {
+							notice.value = `Welcome ${ioClient}`;
+							lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
+							//info.innerHTML = Object.keys(pubKeys).pocs("Totem");
+						}); 
+					}
+					
+					else
+						notice.value = req.message;
+				}
+					
 			}, cbs) );
 		}
 		
 		const
-			{ probeClient, pubKeys, initSecureLink } = SECLINK,
+			{ probeClient, pubKeys, iosocket, initSecureLink } = SECLINK,
 			notice = document.getElementById("notice"),
 			scroll = document.getElementById("scroll"),
 			lock = document.getElementById("lock"),
@@ -1358,6 +1411,14 @@ if (SECLINK.probePlatform) { // Doscover clients platform
 	SECLINK.onLinux = navigator.platform.indexOf("Linux") == 0;
 	SECLINK.onWindows = navigator.platform.indexOf("Win") == 0;
 }
+
+try {
+	SECLINK.pubKeys = JSON.parse( Ajax( {option: "keys"}, "GET", "/login.json" ) );
+}
+catch (err) {
+	alert("Failed to retrieve active users");
+}
+
 
 //localStorage.debug = 'socket.io-client:socket';
 
