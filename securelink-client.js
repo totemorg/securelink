@@ -1,7 +1,11 @@
 // UNCLASSIFIED 
 
 /**
-	@module SECLINK
+	@module SECLINK-CLIENT
+
+	[secureLink](https://github.com/totemstan/securelink.git) provides a secure link between 
+	clients and server for account login/out/reset operations, and provides a private (end-to-end
+	encrypted) message link between trusted clients. 
 	
 	This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
 	methods for:
@@ -761,12 +765,8 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					Log("status", req);
 					
 					if ( req.cookie ) {
-						//iosocket.emit("disconnect");
-						
-						//ioClient = req.client;
 						document.cookie = req.cookie; 
 
-						//alert(req.client + " " + req.cookie);
 						//alert(document.cookie);
 						//alert(window.location+"");
 						window.open(window.location+"", "_self");
@@ -1419,7 +1419,5 @@ catch (err) {
 	alert("Failed to retrieve active users");
 }
 
-
-//localStorage.debug = 'socket.io-client:socket';
 
 // UNCLASSIFIED

@@ -1,9 +1,9 @@
 /**
 	@module SECLINK
 	
-	[secureLink](https://github.com/totemstan/securelink.git) provides a form-fit-functional replacement for the 
-	notoriously buggy [Socket.IO](https://www.npmjs.com/package/socket.io) and its close cousin 
-	[Socet.IO-Client](https://www.npmjs.com/package/socket.io-client).  
+	[secureLink](https://github.com/totemstan/securelink.git) provides a secure link between 
+	clients and server for account login/out/reset operations, and provides a private (end-to-end
+	encrypted) message link between trusted clients. 
 	
 	@requires socketio
 	@requires socket.io
@@ -117,12 +117,12 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		addSession: "INSERT INTO openv.sessions SET ?",
 		getRiddle: "SELECT * FROM openv.riddles WHERE ? LIMIT 1",
 		
-		getAccount:	"SELECT pubKey, Trusted, validEmail, Banned, aes_decrypt(unhex(Password),?) AS Password, SecureCom FROM openv.profiles WHERE Client=?", 
+		getAccount:	"SELECT *,aes_decrypt(unhex(Password),?) AS Password FROM openv.profiles WHERE Client=?", 
 		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
-		setPassword: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,Password),''), SessionID=null WHERE SessionID=?",
-		//getToken: "SELECT Client FROM openv.profiles WHERE TokenID=? AND Expires>now()", 
-		//addToken: "UPDATE openv.profiles SET TokenID=? WHERE Client=?",
-		getSession: "SELECT * FROM openv.profiles WHERE SessionID=? AND Expires>now() LIMIT 1",
+		setPassword: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,Password),''), TokenID=null WHERE TokenID=?",
+		getToken: "SELECT Client FROM openv.profiles WHERE TokenID=? AND Expires>now()", 
+		addToken: "UPDATE openv.profiles SET TokenID=? WHERE Client=?",
+		getSession: "SELECT * FROM openv.profiles WHERE SessionID=? LIMIT 1",
 		addSession: "UPDATE openv.profiles SET Online=1, SessionID=? WHERE Client=?",
 		endSession: "UPDATE openv.profiles SET Online=0, SessionID=null WHERE Client=?",		
 	},
@@ -130,11 +130,11 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	isTrusted: account => true,
 	
 	Login: (account,password,cb) => {
-		function passwordOk(pass) {
+		function passwordOk( pass ) {
 			return (pass.length >= 4);
 		}
 
-		function accountOk(acct) {
+		function accountOk( acct ) {
 			const
 				banned = {
 					"tempail.com": 1,
@@ -195,12 +195,12 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					Repoll: true,	// challenge repoll during active sessions
 					Retries: 5,		// challenge number of retrys before session killed
 					Timeout: 30,	// challenge timeout in secs
-					Message: `What is #riddle?`		// challenge message with riddles, ids, etc					Expires: getExpires( trust ? expireGuest : expirePerm ),
+					Message: `What is #riddle?`		// challenge message with riddles, ids, etc					Expires: getExpires( trust ? expireTemp : expirePerm ),
 				},  password, encryptionPassword, allowSecureConnect ], 	
 				(err,info) => {
 					//Log(err,prof);
-					Log("gen",err,account);
-					cb(err ? null : prof);
+					//Log("gen",err,account);
+					cb(err, prof);
 				});
 		}
 
@@ -218,36 +218,33 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			});
 		}
 
-		function genGuest( sql, password, expires, cb ) {
+		function genGuest( sql, account, expires, cb ) {
 			genCode(accountLen, code => {
 				//Log("gen guest", code);
-				newAccount( sql, "guest"+code+"@totem.org", password, expires, prof => {
+				newAccount( sql, "guest"+code+"@totem.org", password, expires, (err,prof) => {
 					//Log("madeacct", prof);
-					if ( prof )
+					if ( !err )
 						cb( prof );
 
 					else 
-						genGuest( sql, password, expires, cb );
+						genGuest( sql, account, expires, cb );
 				});
 			});
 		}
 
 		function genToken( sql, account, cb ) {
 			genCode(tokenLen, code => {
-				sql.query(
-					addSession, 
-					["reset"+code,account], err => {
+				sql.query( addToken, [ code,account], err => {
+					if ( err )	// has to be unqiue
+						genToken( sql, account, cb );
 
-						if ( err )	// has to be unqiue
-							genToken( sql, account, cb );
-
-						else cb( code, getExpires(expireSession) );
+					else cb( code, getExpires(expireSession) );
 				});
 			});
 		}
 
 		const
-			expireGuest = [5,10],
+			expireTemp = [5,10],
 			expirePerm = [365,0],
 			expireSession = [1,0];
 
@@ -259,8 +256,8 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			tokenLen = 4;
 
 		const
-			{ isTrusted } = SECLINK,
-			{ addProfile, getAccount, addAccount, getSession, addSession, endSession, setPassword } = sqls,
+			{ isTrusted, sendMail } = SECLINK,
+			{ addProfile, getAccount, addAccount, addToken, getToken, getSession, addSession, endSession, setPassword } = sqls,
 			encryptionPassword = ENV.USERS_PASS,
 			allowSecureConnect = true;	
 		
@@ -277,13 +274,48 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 						text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
 					});
 				});
-			
+
 			else
-				sql.query(
-					getSession, 
-					[account], (err,profs) => {		// try to locate client by sessionID
-						if ( prof = profs[0] ) {
-							if ( account.startsWith("reset") )
+				sql.query( getAccount, [encryptionPassword,account], (err,profs) => {		
+
+					if ( prof = profs[0] ) {			// account located
+						if ( prof.Banned ) 				// account was banned for some reason
+							cb(	new Error(prof.Banned) );
+
+						else
+						if ( prof.Online ) 				// account already online
+							cb( new Error( "account online" ) );
+
+						else
+						if ( prof.Expires ? prof.Expires < new Date() : false )		// account expired
+							cb( new Error( "account expired" ) );
+
+						else
+						if (password == prof.Password)	// account matched
+							switch (cb.name) {
+								case "newSession":
+									genSession( sql, account, (sessionID,expires) => cb({
+										id: sessionID, 
+										expires: expires, 
+										profile: prof
+									}) );
+									break;
+
+								default:
+									cb( null, prof );
+							}
+
+						else
+							cb( new Error( "bad account/password" ) );
+					}
+
+					else
+					if ( account.indexOf("@") > 0 ) 
+						newAccount( sql, account, "", getExpires(expireTemp), (err,prof) => cb(null,prof) );						
+					
+					else
+						sql.query( getToken, [account], (err,profs) => {		// try to locate by tokenID
+							if ( prof = profs[0] ) 
 								if ( passwordOk(password) )
 									sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
 										Log("password reset", err);
@@ -297,56 +329,17 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 								else
 									cb( new Error( "password not complex enough" ) );
 
-							else
-								cb( null, prof );
-						}
-						
-						else	// not a session - try account
-						if ( account && getAccount )	// locate account by name
-							sql.query( getAccount, [encryptionPassword,account], (err,profs) => {		
-
-								if ( prof = profs[0] ) {			// account located
-									if ( prof.Banned ) 				// account was banned for some reason
-										cb(	new Error(prof.Banned) );
+							else		// try to locate by sessionID
+								sql.query( getSession, [account], (err,profs) => {		// try to locate by sessionID
+									if ( prof = profs[0] ) 
+										cb( null, prof );
 
 									else
-									if ( prof.Online ) 				// account already online
-										cb( new Error( "account online" ) );
+										cb( new Error("account not found") );
+								});				
+						});
 
-									else
-									if ( prof.Expires < new Date() )		// account expired
-										cb( new Error( "account expired" ) );
-
-									else
-									if (password == prof.Password)	// account matched
-										switch (cb.name) {
-											case "newSession":
-												genSession( sql, account, (sessionID,expires) => cb({
-													id: sessionID, 
-													expires: expires, 
-													profile: prof
-												}) );
-												break;
-
-											default:
-												cb( null, prof );
-										}
-
-									else
-										cb( new Error( "bad account/password" ) );
-								}
-
-								else
-									cb( new Error("account not found") );
-							});
-
-						else 
-						if ( addAccount ) 				// allowing guest accounts
-							genGuest( sql, "", getExpires(expireGuest), prof => cb(null, prof) );
-
-						else
-							cb( new Error("login failed") );
-				});				
+				});
 		});
 	},
 	
@@ -622,7 +615,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				
 				Log("login", [account,password]);
 
-				if ( password == "reset" )
+				if ( account == "reset" )
 					Login( client, "", function resetPassword(status) {
 						Log("pswd reset", status);
 						socket.emit("status", { 
@@ -631,23 +624,29 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					});
 				
 				else
-					Login( account, password || "", function newSession(ses) {
-						Log("session", ses);
-						socket.emit("status", { 
-							message: "Login completed",
-							client: account,
-							cookie: `session=${ses.id}; expires=${ses.expires.toUTCString()}`,
-							passphrase: ses.profile.SecureCom		// nonnull if account allowed to use secureLink
-						});
+					Login( account, password || "", (err,prof) => {
+						Log("session", prof);
+						if ( err ) 
+							socket.emit("status", { 
+								message: err+"",
+							});
+							
+						else {
+							socket.emit("status", { 
+								message: "Login completed",
+								cookie: `session=${prof.Client};`,		//  expires=${ses.expires.toUTCString()}
+								//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
+							});
 
-					IO.emit("remove", {
-						client: client
-					});
+							IO.emit("remove", {
+								client: client
+							});
 
-					IO.emit("accept", {
-						client: account,
-						pubKey: prof.pubKey,
-					}); 
+							IO.emit("accept", {
+								client: account,
+								pubKey: prof.pubKey,
+							}); 
+						}
 				});
 			});
 			
