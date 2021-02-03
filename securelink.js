@@ -17,13 +17,13 @@ const		// globals
 	CRYPTO = require("crypto");	
 
 const
-	// For buggy socket.io
-	//SIO = require('socket.io'), 				// Socket.io client mesh
+	// For legacy buggy socket.io
+	//SOCKETIO = require('socket.io'), 				// Socket.io client mesh
 	//SIOHUB = require('socket.io-clusterhub');  // Socket.io client mesh for multicore app
 	//HUBIO = new (SIOHUB);
 
 	// For working socketio
-	SIO = require("socketio");
+	SOCKETIO = require("socketio");
 
 const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	
@@ -109,7 +109,8 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		map: []
 	},
 	
-	server: null,
+	server: null,	// established on config
+	sio: null,		// established on config
 	
 	inspector: (doc,to,cb) => { throw new Error("inspector() not configured"); },
 	
@@ -259,7 +260,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			tokenLen = 4;
 
 		const
-			{ isTrusted, sendMail } = SECLINK,
+			{ isTrusted, sendMail, sqlThread } = SECLINK,
 			{ addProfile, getAccount, addAccount, addToken, getToken, getSession, addSession, endSession, setPassword } = sqls,
 			encryptionPassword = ENV.USERS_PASS,
 			allowSecureConnect = true;	
@@ -365,6 +366,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	testClient: (client,guess,res) => {
 			
 		const
+			{ sqlThread } = SECLINK,
 			{ getRiddle }= sqls;
 		
 		if ( getRiddle ) 
@@ -447,15 +449,15 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			{ getProfile, addSession } = sqls;
 
 		const
-			IO = TOTEM.IO = SIO(server); 
+			SIO = SECLINK.sio = SOCKETIO(server); 
 				/*{ // socket.io defaults but can override ...
 					//serveClient: true, // default true to prevent server from intercepting path
 					//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 				}),  */
 
-		Log("config socketio", IO.path() );
+		Log("config socketio", SIO.path() );
 
-		IO.on("connect", socket => {  	// define side channel listeners 
+		SIO.on("connect", socket => {  	// define side channel listeners 
 			Log("listening to side channels");
 
 			socket.on("join", (req,socket) => {	// Traps client connect when they call io()
@@ -559,7 +561,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 						try {
 							if ( prof = profs[0] ) {
 								if ( prof.Banned ) 
-									IO.clients[client].emit("status", {
+									SIO.clients[client].emit("status", {
 										message: `${client} banned: ${prof.Banned}`
 									});
 
@@ -569,12 +571,12 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 										getChallenge(prof, riddle => {
 											Log("challenge", riddle);
 											//socket.emit("challenge", riddle);
-											IO.clients[client].emit("start", riddle);
+											SIO.clients[client].emit("start", riddle);
 										});
 
 									else
 										getOnline( pubKeys => {
-											IO.clients[client].emit("start", {
+											SIO.clients[client].emit("start", {
 												message: `Welcome ${client}`,
 												passphrase: prof.SecureCom,
 												pubKeys: pubKeys
@@ -583,7 +585,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 
 								else		// not allowed to use secure link
 									getOnline( pubKeys => {
-										IO.clients[client].emit("start", {
+										SIO.clients[client].emit("start", {
 											message: `Welcome ${client}`,
 											passphrase: "",
 											pubKeys: pubKeys
@@ -592,7 +594,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 							}
 
 							else
-								IO.clients[client].emit("status", {
+								SIO.clients[client].emit("status", {
 									message: `Cant find ${client}`
 								});
 						}
@@ -617,7 +619,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 						err => {
 
 							try {
-								IO.clients[client].emit("status", {
+								SIO.clients[client].emit("status", {
 									message: err ? "failed to store history" : "history stored"
 								});
 							}
@@ -643,12 +645,12 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 
 						try {
 							if ( rec = err ? null : recs[0] )
-								IO.clients[client].emit("content", {
+								SIO.clients[client].emit("content", {
 									message: rec.Content
 								});
 
 							else
-								IO.clients[client].emit("status", {
+								SIO.clients[client].emit("status", {
 									message: "cant restore history"
 								});
 						}
@@ -671,7 +673,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					case "reset":
 						Login( client, "", function resetPassword(status) {
 							Log("login pswd reset", status);
-							IO.clients[client].emit("status", { 
+							SIO.clients[client].emit("status", { 
 								message: status,
 							});
 						});
@@ -680,7 +682,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					case "logout":
 					case "logoff":
 						sqlThread( sql => sql.query("UPDATE openv.profiles SET online=0 WHERE Client=?", client) );
-						IO.emit("remove", {	// broadcast client's pubKey to everyone
+						SIO.emit("remove", {	// broadcast client's pubKey to everyone
 							client: client,
 						});
 
@@ -691,24 +693,24 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 							Log("login session", err, ses);
 							try {
 								if ( err ) 
-									IO.clients[client].emit("status", { 
+									SIO.clients[client].emit("status", { 
 										message: err+"",
 									});
 
 								else {
 									//sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
 
-									IO.clients[client].emit("status", { 
+									SIO.clients[client].emit("status", { 
 										message: "Login completed",
 										cookie: `session=${ses.id}; expires=${ses.expires.toUTCString()}; path=/`
 										//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
 									});
 
-									IO.emit("remove", {
+									SIO.emit("remove", {
 										client: client
 									});
 
-									IO.emit("accept", {
+									SIO.emit("accept", {
 										client: account,
 										pubKey: ses.prof.pubKey,
 									}); 
@@ -729,7 +731,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				Log("relay message", req);
 
 				if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
-					IO.emit("relay", {	// broadcast message to everyone
+					SIO.emit("relay", {	// broadcast message to everyone
 						message: message,
 						from: from,
 						to: to
@@ -763,7 +765,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 											Score: JSON.stringify(score)
 										} );
 
-								IO.emit("relay", {	// broadcast message to everyone
+								SIO.emit("relay", {	// broadcast message to everyone
 									message: message,
 									score: Copy(score, {
 										Activity:lambda, 
@@ -777,7 +779,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					});
 
 				else 		// relay message as-is				   
-					IO.emit("relay", {	// broadcast message to everyone
+					SIO.emit("relay", {	// broadcast message to everyone
 						message: message,
 						from: from,
 						to: to
@@ -808,7 +810,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					});
 				});							
 
-				IO.emit("accept", {	// broadcast client's pubKey to everyone
+				SIO.emit("accept", {	// broadcast client's pubKey to everyone
 					pubKey: pubKey,
 					client: client,
 				});
@@ -824,11 +826,11 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 
 		/*
 		// for debugging
-		IO.on("connect_error", err => {
+		SIO.on("connect_error", err => {
 			Log(err);
 		});
 
-		IO.on("disconnection", socket => {
+		SIO.on("disconnection", socket => {
 			Log(">>DISCONNECT CLIENT");
 		});	
 		*/
