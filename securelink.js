@@ -125,8 +125,8 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		getToken: "SELECT Client FROM openv.profiles WHERE TokenID=? AND Expires>now()", 
 		addToken: "UPDATE openv.profiles SET TokenID=? WHERE Client=?",
 		getSession: "SELECT * FROM openv.profiles WHERE SessionID=? LIMIT 1",
-		addSession: "UPDATE openv.profiles SET Online=1, SessionID=? WHERE Client=?",
-		endSession: "UPDATE openv.profiles SET Online=0, SessionID=null WHERE Client=?",		
+		addSession: "UPDATE openv.profiles SET SessionID=? WHERE Client=?",
+		endSession: "UPDATE openv.profiles SET SessionID=null WHERE Client=?",		
 	},
 	
 	isTrusted: account => true,
@@ -197,7 +197,8 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					Repoll: true,	// challenge repoll during active sessions
 					Retries: 5,		// challenge number of retrys before session killed
 					Timeout: 30,	// challenge timeout in secs
-					Message: `What is #riddle?`		// challenge message with riddles, ids, etc					Expires: getExpires( trust ? expireTemp : expirePerm ),
+					Expires: getExpires( trust ? expireTemp : expirePerm ),
+					Message: `What is #riddle?`		// challenge message with riddles, ids, etc	
 				},  password, encryptionPassword, allowSecureConnect ], 	
 				(err,info) => {
 					//Log(err,prof);
@@ -296,7 +297,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 						if (password == prof.Password)	// account matched
 							switch (cb.name) {
 								case "newSession":
-									genSession( sql, account, (sessionID,expires) => cb({
+									genSession( sql, account, (sessionID,expires) => cb(null, {
 										id: sessionID, 
 										expires: expires, 
 										profile: prof
@@ -313,7 +314,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 
 					else
 					if ( account.indexOf("@") > 0 ) 
-						if ( account.endsWith("@totem.org") || account.endsWith(".mil") )
+						if ( account.endsWith("@totem.org") || account.endsWith(".mil") )  // need to validate cert here
 							newAccount( sql, account, password||"", getExpires(expireTemp), (err,prof) => {
 								cb(null,prof);
 							});
@@ -446,7 +447,8 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			{ getProfile, addSession } = sqls;
 
 		const
-			IO = TOTEM.IO = SIO(server); /*{ // socket.io defaults but can override ...
+			IO = TOTEM.IO = SIO(server); 
+				/*{ // socket.io defaults but can override ...
 					//serveClient: true, // default true to prevent server from intercepting path
 					//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 				}),  */
@@ -554,45 +556,50 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 						
 						//Log(err,profs);
 
-						if ( prof = profs[0] ) {
-							if ( prof.Banned ) 
-								socket.emit("status", {
-									message: `${client} banned: ${prof.Banned}`
-								});
-
-							else
-							if ( prof.SecureCom )	// allowed to use secure link
-								if ( prof.Challenge )	// must solve challenge to enter
-									getChallenge(prof, riddle => {
-										Log("challenge", riddle);
-										//socket.emit("challenge", riddle);
-										socket.emit("start", riddle);
+						try {
+							if ( prof = profs[0] ) {
+								if ( prof.Banned ) 
+									IO.clients[client].emit("status", {
+										message: `${client} banned: ${prof.Banned}`
 									});
-							
+
 								else
+								if ( prof.SecureCom )	// allowed to use secure link
+									if ( prof.Challenge )	// must solve challenge to enter
+										getChallenge(prof, riddle => {
+											Log("challenge", riddle);
+											//socket.emit("challenge", riddle);
+											IO.clients[client].emit("start", riddle);
+										});
+
+									else
+										getOnline( pubKeys => {
+											IO.clients[client].emit("start", {
+												message: `Welcome ${client}`,
+												passphrase: prof.SecureCom,
+												pubKeys: pubKeys
+											});
+										});
+
+								else		// not allowed to use secure link
 									getOnline( pubKeys => {
-										socket.emit("start", {
+										IO.clients[client].emit("start", {
 											message: `Welcome ${client}`,
-											passphrase: prof.SecureCom,
+											passphrase: "",
 											pubKeys: pubKeys
 										});
 									});
+							}
 
-							else		// not allowed to use secure link
-								getOnline( pubKeys => {
-									socket.emit("start", {
-										message: `Welcome ${client}`,
-										passphrase: "",
-										pubKeys: pubKeys
-									});
+							else
+								IO.clients[client].emit("status", {
+									message: `Cant find ${client}`
 								});
 						}
-
-						else
-							socket.emit("status", {
-								message: `Cant find ${client}`
-							});
-
+						
+						catch (err) {
+							Log(err,"Join failed");
+						}
 					});
 				}); 
 			});
@@ -609,9 +616,15 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 						[{Client: client,Content:message}, message],
 						err => {
 
-							socket.emit("status", {
-								message: err ? "failed to store history" : "history stored"
-							});
+							try {
+								IO.clients[client].emit("status", {
+									message: err ? "failed to store history" : "history stored"
+								});
+							}
+							
+							catch (err) {
+								Log(err,"History load failed");
+							}
 					});
 				});
 			});
@@ -626,17 +639,23 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					[client],
 					(err,recs) => {
 
-						Log("restore",err,recs);
+						//Log("restore",err,recs);
 
-						if ( rec = err ? null : recs[0] )
-							socket.emit("content", {
-								message: rec.Content
-							});
+						try {
+							if ( rec = err ? null : recs[0] )
+								IO.clients[client].emit("content", {
+									message: rec.Content
+								});
 
-						else
-							socket.emit("status", {
-								message: "cant restore history"
-							});
+							else
+								IO.clients[client].emit("status", {
+									message: "cant restore history"
+								});
+						}
+						
+						catch (err) {
+							Log(err,"History restore failed");
+						}
 					});
 				});
 			});
@@ -652,7 +671,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					case "reset":
 						Login( client, "", function resetPassword(status) {
 							Log("login pswd reset", status);
-							socket.emit("status", { 
+							IO.clients[client].emit("status", { 
 								message: status,
 							});
 						});
@@ -661,33 +680,43 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					case "logout":
 					case "logoff":
 						sqlThread( sql => sql.query("UPDATE openv.profiles SET online=0 WHERE Client=?", client) );
+						IO.emit("remove", {	// broadcast client's pubKey to everyone
+							client: client,
+						});
+
 						break;
 						
 					default:
-						Login( account, password || "", (err,prof) => {
-							Log("login session", prof);
-							if ( err ) 
-								socket.emit("status", { 
-									message: err+"",
-								});
+						Login( account, password || "", function newSession(err,ses) {
+							Log("login session", err, ses);
+							try {
+								if ( err ) 
+									IO.clients[client].emit("status", { 
+										message: err+"",
+									});
 
-							else {
-								sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
+								else {
+									//sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
 
-								socket.emit("status", { 
-									message: "Login completed",
-									cookie: `session=${prof.Client};`,		//  expires=${ses.expires.toUTCString()}
-									//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
-								});
+									IO.clients[client].emit("status", { 
+										message: "Login completed",
+										cookie: `session=${ses.id}; expires=${ses.expires.toUTCString()}; path=/`
+										//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
+									});
 
-								IO.emit("remove", {
-									client: client
-								});
+									IO.emit("remove", {
+										client: client
+									});
 
-								IO.emit("accept", {
-									client: account,
-									pubKey: prof.pubKey,
-								}); 
+									IO.emit("accept", {
+										client: account,
+										pubKey: ses.prof.pubKey,
+									}); 
+								}
+							}
+							
+							catch (err) {
+								Log(err, "Login propagation failed");
 							}
 					});
 				}
@@ -756,16 +785,15 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 
 			});
 
-			/*
-			socket.on("enter", req => {
-				Log("enter client", req);
+			socket.on("announce", req => {
+				Log("client announced", req);
 
 				const
 					{ client,pubKey } = req;
 
 				sqlThread( sql => {
 					sql.query(
-						"UPDATE openv.profiles SET pubKey=? WHERE Client=?",
+						"UPDATE openv.profiles SET pubKey=?,Online=1 WHERE Client=?",
 						[pubKey,client] );
 
 					if (0)
@@ -780,20 +808,11 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					});
 				});							
 
-				/ *IO.emit("sync", {	// broadcast client's pubKey to everyone
-					message: pubKey,
-					from: client,
-					to: "all"
-				}); * /
 				IO.emit("accept", {	// broadcast client's pubKey to everyone
 					pubKey: pubKey,
 					client: client,
 				});
-				socket.emit("accept", {	// broadcast client's pubKey to everyone
-					pubKey: pubKey,
-					client: client,
-				});
-			});  */
+			});  
 			
 			socket.on("kill", (req,socket) => {
 				Log("kill", req);
@@ -803,6 +822,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 
 		});	
 
+		/*
 		// for debugging
 		IO.on("connect_error", err => {
 			Log(err);
@@ -811,6 +831,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		IO.on("disconnection", socket => {
 			Log(">>DISCONNECT CLIENT");
 		});	
+		*/
 		
 		extendChallenger ( );
 	},
