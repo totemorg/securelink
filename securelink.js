@@ -1,3 +1,5 @@
+// UNCLASSIFIED
+
 /**
 	@module SECLINK
 	
@@ -283,7 +285,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 							cb(	new Error(prof.Banned) );
 
 						else
-						if ( prof.Online ) 				// account already online
+						if ( false && prof.Online ) 				// account already online
 							cb( new Error( "account online" ) );
 
 						else
@@ -311,8 +313,24 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 
 					else
 					if ( account.indexOf("@") > 0 ) 
-						newAccount( sql, account, "", getExpires(expireTemp), (err,prof) => cb(null,prof) );						
-					
+						if ( account.endsWith("@totem.org") || account.endsWith(".mil") )
+							newAccount( sql, account, password||"", getExpires(expireTemp), (err,prof) => {
+								cb(null,prof);
+							});
+						
+						else
+							genPassword( password => {
+								Log("gen", account, password);
+								newAccount( sql, account, password, getExpires(expireTemp), (err,prof) => {
+									cb( new Error("Account verification required") );
+								});
+								sendMail({
+									to: account,
+									subject: "Totem account verification",
+									text: `You may login with ${account}/${password}`
+								});
+							});
+							
 					else
 						sql.query( getToken, [account], (err,profs) => {		// try to locate by tokenID
 							if ( prof = profs[0] ) 
@@ -525,11 +543,20 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 							}) );
 						}
 
+						function getOnline(cb) {
+							const 
+								keys = {};
+
+							sql.query("SELECT Client,pubKey FROM openv.profiles WHERE Online")
+							.on("result", rec => keys[rec.Client] = rec.pubKey )
+							.on("end", () => cb( keys ) );
+						}
+						
 						//Log(err,profs);
 
 						if ( prof = profs[0] ) {
 							if ( prof.Banned ) 
-								socket.emit("exit", {
+								socket.emit("status", {
 									message: `${client} banned: ${prof.Banned}`
 								});
 
@@ -543,20 +570,26 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 									});
 							
 								else
-									socket.emit("start", {
-										message: `Welcome ${client}`,
-										passphrase: prof.SecureCom
+									getOnline( pubKeys => {
+										socket.emit("start", {
+											message: `Welcome ${client}`,
+											passphrase: prof.SecureCom,
+											pubKeys: pubKeys
+										});
 									});
 
 							else		// not allowed to use secure link
-								socket.emit("start", {
-									message: `Welcome ${client}`,
-									passphrase: ""
+								getOnline( pubKeys => {
+									socket.emit("start", {
+										message: `Welcome ${client}`,
+										passphrase: "",
+										pubKeys: pubKeys
+									});
 								});
 						}
 
 						else
-							socket.emit("exit", {
+							socket.emit("status", {
 								message: `Cant find ${client}`
 							});
 
@@ -613,41 +646,51 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				const 
 					{ account, password, client } = req;
 				
-				Log("login", [account,password]);
+				//Log("login", [account,password]);
 
-				if ( account == "reset" )
-					Login( client, "", function resetPassword(status) {
-						Log("pswd reset", status);
-						socket.emit("status", { 
-							message: status,
+				switch ( account ) {
+					case "reset":
+						Login( client, "", function resetPassword(status) {
+							Log("login pswd reset", status);
+							socket.emit("status", { 
+								message: status,
+							});
 						});
-					});
+						break;
 				
-				else
-					Login( account, password || "", (err,prof) => {
-						Log("session", prof);
-						if ( err ) 
-							socket.emit("status", { 
-								message: err+"",
-							});
-							
-						else {
-							socket.emit("status", { 
-								message: "Login completed",
-								cookie: `session=${prof.Client};`,		//  expires=${ses.expires.toUTCString()}
-								//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
-							});
+					case "logout":
+					case "logoff":
+						sqlThread( sql => sql.query("UPDATE openv.profiles SET online=0 WHERE Client=?", client) );
+						break;
+						
+					default:
+						Login( account, password || "", (err,prof) => {
+							Log("login session", prof);
+							if ( err ) 
+								socket.emit("status", { 
+									message: err+"",
+								});
 
-							IO.emit("remove", {
-								client: client
-							});
+							else {
+								sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
 
-							IO.emit("accept", {
-								client: account,
-								pubKey: prof.pubKey,
-							}); 
-						}
-				});
+								socket.emit("status", { 
+									message: "Login completed",
+									cookie: `session=${prof.Client};`,		//  expires=${ses.expires.toUTCString()}
+									//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
+								});
+
+								IO.emit("remove", {
+									client: client
+								});
+
+								IO.emit("accept", {
+									client: account,
+									pubKey: prof.pubKey,
+								}); 
+							}
+					});
+				}
 			});
 			
 			socket.on("relay", (req,socket) => {
@@ -774,5 +817,4 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	
 }
 
-
-
+// UNCLASSIFIED

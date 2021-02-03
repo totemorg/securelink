@@ -581,7 +581,6 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 							// allow only us gov and totem accts
 							// (ioClient.endsWith(".mil") || ioClient.endsWith("@totem.org")) && !ioClient.match(/\.ctr@.*\.mil/),				
 						passphrase: passphrase,
-						//pubKeys: {},
 						priKey: priKey,
 						clients: 1,
 						history: [],
@@ -686,10 +685,12 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				close: req => alert("secureLink closed!"),
 				
 				start: req => {		// start secure link with supplied passphrase
+					Copy( req.pubKeys, pubKeys );
 					initSecureLink( req.passphrase, secure => {
 						notice.value = `Welcome ${ioClient}`;
 						lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
-						info.innerHTML = Object.keys(pubKeys).pocs("Totem");
+						info.innerHTML = Object.keys(pubKeys).mailto("Totem");
+						//alert(info.innerHTML);
 						
 						displayNotice( req, req.message );
 					});
@@ -718,7 +719,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					Log("sync", req);
 					pubKeys[from] = message;
 					
-					info.innerHTML = Object.keys(pubKeys).pocs("Totem");
+					info.innerHTML = Object.keys(pubKeys).mailto("Totem");
 				},
 
 				relay: req => {			// accept message or public key
@@ -746,7 +747,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					Log("accept", req);
 					const {client,pubKey} = req;
 						pubKeys[client] = pubKey;
-						info.innerHTML = Object.keys(pubKeys).pocs("Totem");	
+						info.innerHTML = Object.keys(pubKeys).mailto("Totem");	
 					if ( client != "guest@totem.org" ) {
 					}
 				},
@@ -755,7 +756,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					Log("remove",req);
 					const {client} = req;
 						delete pubKeys[client];
-						info.innerHTML = Object.keys(pubKeys).pocs("Totem");
+						info.innerHTML = Object.keys(pubKeys).mailto("Totem");
 					if ( client != "guest@totem.org" ) {
 					}
 				},
@@ -770,12 +771,6 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 						//alert(document.cookie);
 						//alert(window.location+"");
 						window.open(window.location+"", "_self");
-						if (0)
-						initSecureLink( req.passphrase, secure => {
-							notice.value = `Welcome ${ioClient}`;
-							lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
-							//info.innerHTML = Object.keys(pubKeys).pocs("Totem");
-						}); 
 					}
 					
 					else
@@ -1277,7 +1272,8 @@ Array.prototype.Extend = function (con) {
 
 		else {  // tag html
 			var rtn = "<"+el+" ";
-
+			//Log("tag", el, at);
+			
 			if (at)
 				Each( at, (key,val) => {
 					if ( val )
@@ -1291,6 +1287,7 @@ Array.prototype.Extend = function (con) {
 				case "input":
 					return rtn+">" + this;
 				default:
+					//Log("tag out", rtn+">" + this + "</"+el+">" );
 					return rtn+">" + this + "</"+el+">";
 			}
 		}
@@ -1382,13 +1379,10 @@ Array.prototype.Extend = function (con) {
 		return args;
 	},
 	
-	function pocs(subj) {
-		return this
-			.map( (name,i) => `$${i} ${name}`
-							.tag("a",{href:`mailto:${name}?subject=${subj}`})
-							.tag("option",{value:name}) )
-			.join("")
-			.tag("select") 
+	function mailto(subj) {
+		return this.map( name => (name || "")
+				 	.tag("option",{ value:`mailto:${name}?subject=${subj}` }) )
+			.join("").tag("select",{onchange:"window.location=this.value;"});
 	}
 ].Extend(Array);
 
@@ -1411,13 +1405,5 @@ if (SECLINK.probePlatform) { // Doscover clients platform
 	SECLINK.onLinux = navigator.platform.indexOf("Linux") == 0;
 	SECLINK.onWindows = navigator.platform.indexOf("Win") == 0;
 }
-
-try {
-	SECLINK.pubKeys = JSON.parse( Ajax( {option: "keys"}, "GET", "/login.json" ) );
-}
-catch (err) {
-	alert("Failed to retrieve active users");
-}
-
 
 // UNCLASSIFIED
