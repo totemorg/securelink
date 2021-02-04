@@ -417,7 +417,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				{ store, extend, map, captcha } = challenge,
 				{ floor, random } = Math;
 
-			Log( `extend imageset=${captcha} extend=${extend}` );
+			Log( `Adding ${extend} challenges from the ${captcha} imageset` );
 
 			if ( captcha )
 				for (var n=0; n<extend; n++) {
