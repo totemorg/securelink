@@ -115,7 +115,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	inspector: (doc,to,cb) => { throw new Error("inspector() not configured"); },
 	
 	sqls: {
-		addProfile: "INSERT INTO openv.profiles SET ?",
+		//addProfile: "INSERT INTO openv.profiles SET ?",
 		getProfile: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
 		addSession: "INSERT INTO openv.sessions SET ?",
 		getRiddle: "SELECT * FROM openv.riddles WHERE ? LIMIT 1",
@@ -132,7 +132,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	
 	isTrusted: account => true,
 	
-	Login: (account,password,cb) => {
+	Login: (login,cb) => {
 		function passwordOk( pass ) {
 			return (pass.length >= 4);
 		}
@@ -170,7 +170,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			genCode(passwordLen, code => cb(code, getExpires(expireSession)) );
 		}
 
-		function genCode ( len, cb ) {
+		function genCode( len, cb ) {
 			return CRYPTO.randomBytes( len/2, (err, code) => cb( code.toString("hex") ) );
 		}
 
@@ -208,7 +208,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				});
 		}
 
-		function genSession ( sql, account, cb ) {
+		function genSession( sql, account, cb ) {
 			genCode(sessionLen, code => {
 				sql.query(
 					addSession, 
@@ -247,6 +247,48 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			});
 		}
 
+		function getProfile( sql, account, cb ) {
+			sql.query( getAccount, [encryptionPassword, account], (err,profs) => {		
+
+				if ( prof = profs[0] ) {			// account located
+					if ( prof.Banned ) 				// account was banned for some reason
+						cb(	new Error(prof.Banned) );
+
+					else
+					if ( false && prof.Online ) 				// account already online
+						cb( new Error( "account online" ) );
+
+					else
+					if ( prof.Expires ? prof.Expires < new Date() : false )		// account expired
+						cb( new Error( "account expired" ) );
+
+					else
+						cb( null, prof );
+				}
+
+				else
+				if ( account.endsWith("@totem.org") || account.endsWith(".mil") )  // need to validate cert here
+					newAccount( sql, account, "", getExpires(expireTemp), (err,prof) => {
+						cb(null,prof);
+					});
+
+				else
+					sql.query( getToken, [account], (err,profs) => {		// try to locate by tokenID
+						if ( prof = profs[0] ) 
+							cb( null, prof );
+						
+						else		// try to locate by sessionID
+							sql.query( getSession, [account], (err,profs) => {		// try to locate by sessionID
+								if ( prof = profs[0] ) 
+									cb( null, prof );
+
+								else
+									cb( new Error("account not found") );
+							});				
+					});
+			});
+		}
+		
 		const
 			expireTemp = [5,10],
 			expirePerm = [365,0],
@@ -261,105 +303,85 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 
 		const
 			{ isTrusted, sendMail, sqlThread } = SECLINK,
-			{ addProfile, getAccount, addAccount, addToken, getToken, getSession, addSession, endSession, setPassword } = sqls,
+			{ getAccount, addAccount, addToken, getToken, getSession, addSession, endSession, setPassword } = sqls,
 			encryptionPassword = ENV.USERS_PASS,
-			allowSecureConnect = true;	
+			allowSecureConnect = true,
+			[account,password] = login.split("/");
 		
 		Log("login",[account,password]);
 		
 		sqlThread( sql => {
-			if ( cb.name == "resetPassword" ) 
-				genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
-					cb( `See your ${account} email for further instructions` );
+			switch ( cb.name ) {
+				case "resetPassword":		// host requesting a password reset
+					genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
+						cb( `See your ${account} email for further instructions` );
 
-					sendMail({
-						to: account,
-						subject: "Totem password reset request",
-						text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
+						sendMail({
+							to: account,
+							subject: "Totem password reset request",
+							text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
+						});
 					});
-				});
+					break;
+			
+				case "newAccount": 
+					genPassword( password => {
+						Log("gen", account, password);
+						newAccount( sql, account, password, getExpires(expireTemp), (err,prof) => {
+							cb( "Account verification required" );
+						});
+						sendMail({
+							to: account,
+							subject: "Totem account verification",
+							text: `You may login with ${account}/${password}`
+						});
+					});
+					break;
+					
+				case "newSession":
+					getProfile( sql, account, (err, prof) => {
+						if ( err ) 
+							cb( err, null );
+						
+						else
+						if ( prof.TokenID ) 	// permitting password reset
+							if ( passwordOk(password) )
+								sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
+									Log("password reset", err);
+									if ( err ) 
+										cb( new Error( "Your password could not be reset at this time" ) );
 
-			else
-				sql.query( getAccount, [encryptionPassword,account], (err,profs) => {		
+									else
+										cb( new Error( `You may login to ${prof.Client} using your new password.` ) );
+								});
 
-					if ( prof = profs[0] ) {			// account located
-						if ( prof.Banned ) 				// account was banned for some reason
-							cb(	new Error(prof.Banned) );
+							else
+								cb( new Error( "password not complex enough" ) );
 
 						else
-						if ( false && prof.Online ) 				// account already online
-							cb( new Error( "account online" ) );
-
-						else
-						if ( prof.Expires ? prof.Expires < new Date() : false )		// account expired
-							cb( new Error( "account expired" ) );
-
-						else
-						if (password == prof.Password)	// account matched
-							switch (cb.name) {
-								case "newSession":
-									genSession( sql, account, (sessionID,expires) => cb(null, {
-										id: sessionID, 
-										expires: expires, 
-										profile: prof
-									}) );
-									break;
-
-								default:
-									cb( null, prof );
-							}
+						if (password == prof.Password)		// match account
+							genSession( sql, account, (sessionID,expires) => cb(null, {
+								id: sessionID, 
+								expires: expires, 
+								profile: prof
+							}) );
 
 						else
 							cb( new Error( "bad account/password" ) );
-					}
-
-					else
-					if ( account.indexOf("@") > 0 ) 
-						if ( account.endsWith("@totem.org") || account.endsWith(".mil") )  // need to validate cert here
-							newAccount( sql, account, password||"", getExpires(expireTemp), (err,prof) => {
-								cb(null,prof);
-							});
+					});
+					break;
+			
+				case "guestSession":
+				default:
+					getProfile( sql, account, (err, prof) => {
+						Log("guestprof", err);
+						if ( err ) 
+							cb( err, null );
 						
 						else
-							genPassword( password => {
-								Log("gen", account, password);
-								newAccount( sql, account, password, getExpires(expireTemp), (err,prof) => {
-									cb( new Error("Account verification required") );
-								});
-								sendMail({
-									to: account,
-									subject: "Totem account verification",
-									text: `You may login with ${account}/${password}`
-								});
-							});
-							
-					else
-						sql.query( getToken, [account], (err,profs) => {		// try to locate by tokenID
-							if ( prof = profs[0] ) 
-								if ( passwordOk(password) )
-									sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
-										Log("password reset", err);
-										if ( err ) 
-											cb( new Error( "Your password could not be reset at this time" ) );
-
-										else
-											cb( new Error( `You may login to ${prof.Client} using your new password.` ) );
-									});
-
-								else
-									cb( new Error( "password not complex enough" ) );
-
-							else		// try to locate by sessionID
-								sql.query( getSession, [account], (err,profs) => {		// try to locate by sessionID
-									if ( prof = profs[0] ) 
-										cb( null, prof );
-
-									else
-										cb( new Error("account not found") );
-								});				
-						});
-
-				});
+							cb( null, prof )
+					});
+			}			
 		});
 	},
 	
@@ -457,10 +479,10 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 
 		Log("config socketio", SIO.path() );
 
-		SIO.on("connect", socket => {  	// define side channel listeners 
+		SIO.on("connect", socket => {  	// define side channel listeners when client calls io()
 			Log("listening to side channels");
 
-			socket.on("join", (req,socket) => {	// Traps client connect when they call io()
+			socket.on("join", (req,socket) => {	// Traps client connect when client emits "join" request
 				Log("admit client", req);
 				const
 					{client,message,insecureok} = req;
@@ -665,13 +687,13 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			socket.on("login", (req,socket) => {
 
 				const 
-					{ account, password, client } = req;
+					{ login, client } = req;
 				
 				//Log("login", [account,password]);
 
-				switch ( account ) {
+				switch ( login ) {
 					case "reset":
-						Login( client, "", function resetPassword(status) {
+						Login( client, function resetPassword(status) {
 							Log("login pswd reset", status);
 							SIO.clients[client].emit("status", { 
 								message: status,
@@ -689,7 +711,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 						break;
 						
 					default:
-						Login( account, password || "", function newSession(err,ses) {
+						Login( login, function newSession(err,ses) {
 							Log("login session", err, ses);
 							try {
 								if ( err ) 
