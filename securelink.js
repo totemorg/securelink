@@ -308,7 +308,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			allowSecureConnect = true,
 			[account,password] = login.split("/");
 		
-		Log("login",[account,password]);
+		//Log("login",[account,password]);
 		
 		sqlThread( sql => {
 			switch ( cb.name ) {
@@ -326,7 +326,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			
 				case "newAccount": 
 					genPassword( password => {
-						Log("gen", account, password);
+						//Log("gen", account, password);
 						newAccount( sql, account, password, getExpires(expireTemp), (err,prof) => {
 							cb( "Account verification required" );
 						});
@@ -341,22 +341,22 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				case "newSession":
 					getProfile( sql, account, (err, prof) => {
 						if ( err ) 
-							cb( err, null );
+							cb( err+"", null );
 						
 						else
-						if ( prof.TokenID ) 	// permitting password reset
+						if ( prof.TokenID ) 	// requires password reset
 							if ( passwordOk(password) )
 								sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
 									Log("password reset", err);
 									if ( err ) 
-										cb( new Error( "Your password could not be reset at this time" ) );
+										cb( "Your password could not be reset at this time" );
 
 									else
-										cb( new Error( `You may login to ${prof.Client} using your new password.` ) );
+										cb( `You may login to ${prof.Client} using your new password.` );
 								});
 
 							else
-								cb( new Error( "password not complex enough" ) );
+								cb( "password not complex enough" );
 
 						else
 						if (password == prof.Password)		// match account
@@ -367,14 +367,14 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 							}) );
 
 						else
-							cb( new Error( "bad account/password" ) );
+							cb( "bad account/password" );
 					});
 					break;
 			
 				case "guestSession":
 				default:
 					getProfile( sql, account, (err, prof) => {
-						Log("guestprof", err);
+						//Log("guestprof", err);
 						if ( err ) 
 							cb( err, null );
 						
@@ -687,15 +687,16 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			socket.on("login", (req,socket) => {
 
 				const 
-					{ login, client } = req;
+					{ login, client } = req,
+					[account,password] = login.split("/");
 				
 				//Log("login", [account,password]);
 
-				switch ( login ) {
+				switch ( account ) {
 					case "reset":
-						Login( client, function resetPassword(status) {
+						Login( password, function resetPassword(status) {
 							Log("login pswd reset", status);
-							SIO.clients[client].emit("status", { 
+							SIO.clients[password].emit("status", { 
 								message: status,
 							});
 						});
@@ -753,7 +754,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				Log("relay message", req);
 
 				if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
-					SIO.emit("relay", {	// broadcast message to everyone
+					SIO.emitOthers(from, "relay", {	// broadcast message to everyone
 						message: message,
 						from: from,
 						to: to
@@ -787,7 +788,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 											Score: JSON.stringify(score)
 										} );
 
-								SIO.emit("relay", {	// broadcast message to everyone
+								SIO.emitOthers(from, "relay", {	// broadcast message to everyone
 									message: message,
 									score: Copy(score, {
 										Activity:lambda, 
@@ -801,7 +802,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					});
 
 				else 		// relay message as-is				   
-					SIO.emit("relay", {	// broadcast message to everyone
+					SIO.emitOthers(from, "relay", {	// broadcast message to everyone
 						message: message,
 						from: from,
 						to: to

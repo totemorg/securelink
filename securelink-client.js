@@ -63,11 +63,10 @@ function notice_login() {
 		try {
 			const
 				{ pubKeys } = SECLINK,
-				[acct,pass] = notice.value.substr(bang.length).split("/");
+				login = notice.value.substr(bang.length);
 			
 			iosocket.emit("login", {
-				account: acct,
-				password: pass,
+				login: login,
 				client: ioClient
 			});
 		}
