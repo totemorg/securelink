@@ -547,13 +547,13 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 							}) );
 						}
 
-						function getOnline(cb) {
+						function getOnline( prof, cb) {
 							const 
 								keys = {};
 
 							sql.query("SELECT Client,pubKey FROM openv.profiles WHERE Online")
 							.on("result", rec => keys[rec.Client] = rec.pubKey )
-							.on("end", () => cb( keys ) );
+							.on("end", () => cb( keys, prof ) );
 						}
 						
 						//Log(err,profs);
@@ -575,7 +575,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 										});
 
 									else
-										getOnline( pubKeys => {
+										getOnline( prof, (pubKeys,prof) => {
 											SIO.clients[client].emit("start", {
 												message: `Welcome ${client}`,
 												passphrase: prof.SecureCom,
