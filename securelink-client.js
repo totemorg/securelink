@@ -23,30 +23,6 @@
 		
 	@requires socketio
 	@requires openpgp
-	
-	Protocol
-	
-		client => service	=>		service => client				<=
-		/login?option=OPT	circuit	returns, does					circuit
-		===================================================================
-		login 				enter	{message,cookie,passphrase}		sync		
-		temp				{message}			
-		reset				{message}, email
-		logoff				{message}, broadcast
-		make				{message}, email
-		users				json
-		keys				json
-		logoff				json							leave
-		
-			client => service				service => client
-		=============================		==================
-		notice	| socketio	| SECLINK		broadcast
-		button	| circuit	| method		circuit
-		======================================================
-		signal	| relay		| Encrypt		relay
-		save	| store		| Encode		status
-		load	| restore	| Decode		content
-		signal	| relay		| Decrypt		relay
 */
 
 //============= notice actions (defined by the site skin) that support the SecureIntercom (socket.io/openpgp)
@@ -122,11 +98,6 @@ function notice_load() {
 	else
 		alert(`supply ${bang}encryption password`);
 }
-
-/*
-function notice_lock() {
-}
-*/
 
 function notice_delete() {
 	const
@@ -260,7 +231,7 @@ const {
 	
 	pubKeys: {},
 		
-	probeClient: cb => {
+	probeClient: cb => {	// legacy
 		
 		// Discover client IP addresses 
 		function probeIPs(callback) {		// legacy

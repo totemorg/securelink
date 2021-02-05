@@ -16,6 +16,32 @@ Feel free to [submit and status TOTEM issues](http://totem.hopto.org/issues.view
 [inspect TOTEM requirements](http://totem.hopto.org/reqts.view) || [COE](https://totem.west.ile.nga.ic.gov/reqts.view) || [SBU](https://totem.nga.mil/reqts.view), [browse TOTEM holdings](http://totem.hopto.org/) || [COE](https://totem.west.ile.nga.ic.gov/) || [SBU](https://totem.nga.mil/), 
 or [follow TOTEM milestones](http://totem.hopto.org/milestones.view) || [COE](https://totem.west.ile.nga.ic.gov/milestones.view) || [SBU](https://totem.nga.mil/milestones.view).
 
+## Protocol
+
+	Function	Client					Channel 			Server
+	==================================================================
+	join			----------------- connect ---------------->
+	request			----------------- join ------------------->
+					<---- status || challenge || start	-------
+	
+	start			----------------- announce --------------->
+	session			<---------------- accept* -----------------
+	
+	save			----------------- store ------------------>
+	history			<---------------- status ------------------
+	
+	load			----------------- restore ---------------->
+	history			<---------------- status ------------------
+	
+	login			----------------- login ------------------>
+	request			<----- status, remove*, accept* -----------
+					
+	relay			----------------- relay ------------------>
+	message			<---------------- relay** -----------------
+	
+	* sends to all clients
+	** sends to all clients except the requesting client
+	
 ## License
 
 [MIT](LICENSE)
