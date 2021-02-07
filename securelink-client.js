@@ -664,14 +664,18 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				close: req => alert("secureLink closed!"),
 				
 				start: req => {		// start secure link with supplied passphrase
-					initSecureLink( req.pubKeys, req.passphrase, secure => {
-						notice.value = `Welcome ${ioClient}`;
-						lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
-						info.innerHTML = Object.keys(pubKeys).mailto("Totem");
-						//alert(info.innerHTML);
-						
-						displayNotice( req, req.message );
-					});
+					if ( openpgp )
+						initSecureLink( req.pubKeys, req.passphrase, secure => {
+							notice.value = `Welcome ${ioClient}`;
+							lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
+							info.innerHTML = Object.keys(pubKeys).mailto("Totem");
+							//alert(info.innerHTML);
+
+							displayNotice( req, req.message );
+						});
+					
+					else
+						Log("secureLink not installed");
 				},
 
 				content: req => {		// ingest message history content 
