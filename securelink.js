@@ -569,13 +569,13 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 							}) );
 						}
 
-						function getOnline( prof, cb) {
+						function getOnline( cb) {
 							const 
 								keys = {};
 
 							sql.query("SELECT Client,pubKey FROM openv.profiles WHERE Online")
 							.on("result", rec => keys[rec.Client] = rec.pubKey )
-							.on("end", () => cb( keys, prof ) );
+							.on("end", () => cb( keys ) );
 						}
 						
 						//Log(err,profs);
@@ -588,27 +588,29 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 									});
 
 								else
-								if ( prof.SecureCom )	// allowed to use secure link
+								if ( SecureCom = prof.SecureCom )	// allowed to use secure link
 									if ( prof.Challenge )	// must solve challenge to enter
-										getChallenge(prof, riddle => {
+										getChallenge( prof, riddle => {
 											Log("challenge", riddle);
 											//socket.emit("challenge", riddle);
 											SIO.clients[client].emit("start", riddle);
 										});
 
 									else
-										getOnline( prof, (pubKeys,prof) => {
+										getOnline( pubKeys => {
 											SIO.clients[client].emit("start", {
 												message: `Welcome ${client}`,
-												passphrase: prof.SecureCom,
+												from: "secureLink",
+												passphrase: SecureCom,
 												pubKeys: pubKeys
 											});
 										});
 
-								else		// not allowed to use secure link
+								else		// barred from using the secure link
 									getOnline( pubKeys => {
 										SIO.clients[client].emit("start", {
 											message: `Welcome ${client}`,
+											from: "secureLink",
 											passphrase: "",
 											pubKeys: pubKeys
 										});

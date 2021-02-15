@@ -33,7 +33,7 @@ function notice_login() {
 		{ secureLink,bang,initSecureLink,iosocket } = SECLINK,
 		notice = document.getElementById("notice"),
 		lock = document.getElementById("lock"),
-		info = document.getElementById("info");
+		users = document.getElementById("users");
 
 	if ( notice.value.startsWith(bang) ) 
 		try {
@@ -121,7 +121,8 @@ function notice_signal() {		//< send secure notice message to server
 		notice = document.getElementById("notice"),
 		upload = document.getElementById("upload");
 	
-	if ( notice.value.startsWith("!!") ) {		// not for me - for a notice control
+	
+	if ( notice.value.startsWith(bang) ) {		// not for me - for a notice control
 		//alert( `Submit ${bang}option with appropriate control` );
 		return;	
 	}
@@ -130,7 +131,7 @@ function notice_signal() {		//< send secure notice message to server
 
 	const
 		{ pubKeys } = SECLINK,
-		{ priKey, passphrase, lookups } = secureLink;
+		{ priKey, passphrase, lookups, history, myRoom } = secureLink;
 
 	//Log(pubKeys, priKey);
 
@@ -162,13 +163,18 @@ function notice_signal() {		//< send secure notice message to server
 	}
 
 	function send(msg,to) {
-		//alert(msg);
-
 		(to||"").replace(/ /g,"").split(",").forEach( to => {
 
 			function send(msg,to) {
 				Log("signal", msg, ioClient, "=>", to);
-
+				
+				history.push({
+					msg: msg,
+					user: to,
+					dir: "to",
+					on: (new Date()).toUTCString()
+				});  
+				
 				if ( pubKey = pubKeys[to] )		// use secureLink when target in ecosystem
 					Encrypt( passphrase, msg, pubKey, priKey, msg => {
 						//Log(notice.value,msg);
@@ -176,6 +182,7 @@ function notice_signal() {		//< send secure notice message to server
 							message: msg,
 							from: ioClient,
 							to: to,
+							room: myRoom,
 							route: route.slice(2),
 							insecureok: !secure
 						});
@@ -219,7 +226,15 @@ function notice_signal() {		//< send secure notice message to server
 
 }
 
-
+function users_select(key) { 
+	const
+		{ secureLink,bang,initSecureLink,iosocket } = SECLINK,
+		{ history } = secureLink,
+		notice = document.getElementById("notice");
+	
+	notice.value = history.select({user: key}).map( hist => `${hist.on} ${hist.dir} ${hist.user} ${hist.msg}` ).join("\n");
+}
+			
 //============== Extract functions to the browser's global namespace
 
 const {
@@ -295,7 +310,7 @@ const {
 
 			//wait for a while to let everything done
 			setTimeout( function() {
-				//read candidate info from local description
+				//read candidate users from local description
 				var lines = pc.localDescription.sdp.split('\n');
 
 				lines.forEach(function(line) {
@@ -545,7 +560,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 
 		const { pubKeys } = SECLINK;
 		
-		if ( passphrase && ioClient && openpgp ) 
+		if ( passphrase ) 
 			GenKeys( passphrase, (pubKey, priKey) => {
 				const 
 					{ iosocket, pubKeys } = SECLINK,
@@ -565,7 +580,9 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 							$test: `this is a test and only a test=>!$me`,
 							$dogs: `Cats are small. Dogs are big. Cats like to chase mice. Dogs like to eat bones.=>!$me`,
 							$drugs: `The Sinola killed everyone in the town.#terror=>!$me`,
-						}
+						},
+						myRoom: "default",
+						rooms: ["default"]
 					};
 
 				pubKeys[ioClient] = pubKey;
@@ -581,11 +598,11 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				});	
 
 				//Log("keys", pubKey,priKey,lookups);
-				cb(secure);								
+				cb(secure);	
 			});
 		
 		else
-			cb(false, {});
+			cb(false);
 
 	},
 
@@ -594,10 +611,11 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 		function joinService(location) {
 			function displayNotice(req,msg) {
 				const
-					{ secureLink } = SECLINK;
+					{ secureLink } = SECLINK,
+					{ history } = secureLink;
 				
 				if ( msg.startsWith("??") ) {
-					info.innerHTML = msg.substr(2);
+					users.innerHTML = msg.substr(2);
 					notice.size = 5;
 					notice.onchange = () => {
 						switch ( Ajax({
@@ -626,12 +644,12 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 						Fuse = setInterval( function () {
 							if ( tick.value > 600 ) {
 								clearInterval(Fuse);
-								info.innerHTML = Object.keys(pubKeys).mailto("Totem");
+								//users.innerHTML = Object.keys(pubKeys).menu("Totem");
 								tick.style = "display:none";
 								tries.style = "display:none";
 								notice.size = 75;
 								notice.value = `Welcome ${ioClient}`;
-								notice.onchange="notice_signal()";
+								notice.onchange= notice_signal; // "notice_signal()";
 							}
 
 							else {
@@ -650,12 +668,13 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				}
 
 				else {
-					const
-						t = new Date(),
-						tstamp = t.toUTCString(); //t.toDateString() + " " + t.toLocaleTimeString();
-
-					notice.value = req.from ? msg + "<=" + req.from + " on " + tstamp : msg;
-					secureLink.history.push( notice.value );
+					notice.value = msg + "<=" + req.from;
+					history.push({
+						msg: msg,
+						user: req.from,
+						dir: "from",
+						on: (new Date()).toUTCString()
+					}); 
 				}
 			}
 
@@ -664,12 +683,11 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				close: req => alert("secureLink closed!"),
 				
 				start: req => {		// start secure link with supplied passphrase
+					//Log("start", req);
 					if ( openpgp )
 						initSecureLink( req.pubKeys, req.passphrase, secure => {
 							notice.value = `Welcome ${ioClient}`;
-							lock.innerHTML = "".tag("img",{src:`/clients/icons/actions/${secure?"lock":"unlock"}.png`,width:15,height:15});
-							info.innerHTML = Object.keys(pubKeys).mailto("Totem");
-							//alert(info.innerHTML);
+							updateUsers();
 
 							displayNotice( req, req.message );
 						});
@@ -701,7 +719,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					Log("sync", req);
 					pubKeys[from] = message;
 					
-					info.innerHTML = Object.keys(pubKeys).mailto("Totem");
+					updateUsers();
 				},
 
 				relay: req => {			// relay message or public key
@@ -729,14 +747,14 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					Log("accept", req);
 					const {client,pubKey} = req;
 					pubKeys[client] = pubKey;
-					info.innerHTML = Object.keys(pubKeys).mailto("Totem");	
+					updateUsers();
 				},
 				
 				remove: req => {
 					Log("remove",req);
 					const {client} = req;
 					delete pubKeys[client];
-					info.innerHTML = Object.keys(pubKeys).mailto("Totem");
+					updateUsers();
 				},
 				
 				status: req => {
@@ -758,17 +776,26 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			}, cbs) );
 		}
 		
+		function updateUsers(  ) {
+			users.innerHTML = 
+				Object.keys(pubKeys)
+				.map( (name,i) => `$${i} ${name}`
+					 .tag("option", { value: name }) )
+				.join("")
+				.tag("select", { onchange: `users_select(this.value)` }); 
+		}
+		
 		const
 			{ probeClient, pubKeys, iosocket, initSecureLink } = SECLINK,
 			notice = document.getElementById("notice"),
 			scroll = document.getElementById("scroll"),
-			lock = document.getElementById("lock"),
-			info = document.getElementById("info"),
+			//lock = document.getElementById("lock"),
+			users = document.getElementById("users"),
+			rooms = document.getElementById("rooms"),
 			tick = document.getElementById("tick"),
 			tries = document.getElementById("tries");
 
 		probeClient( (ip,location) => joinService(ip,location) );
-
 	},
 		
 	//============ general purpose data testing and output
@@ -804,7 +831,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 		use Activate to configure these widgets.
 	*/
 	Render: ( $at, cbs) => {
-		//alert("render", $at[0] );
+		alert("render", $at[0] );
 		const
 			Tab = "tab";		//< keyword used by Render
 		
@@ -873,7 +900,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 								if (html) update += html.tag(Tab,{ id:pane } );
 							}
 
-							//Log(">>>posting", update);
+							Log(">>>posting", update);
 							$el.replaceWith( // replace widget with border-ed version
 								( update + el.outerHTML.tag(Tab,{id:"center"}) ).tag("border",{id:id+".help"})
 							);	
@@ -1357,10 +1384,15 @@ Array.prototype.Extend = function (con) {
 		return args;
 	},
 	
-	function mailto(subj) {
-		return this.map( (name,i) => `$${i} ${name}`
-				 	.tag("option",{ value:`mailto:${name}?subject=${subj}` }) )
-			.join("").tag("select",{onchange:"window.location=this.value;"});
+	function select(keys) {
+		const rtn = [];
+		this.forEach( rec => {
+			for ( var key in keys ) 
+				if ( rec[key] == keys[key] ) 
+					rtn.push(rec);
+		});
+		//Log("select=", rtn, keys);
+		return rtn;
 	}
 ].Extend(Array);
 

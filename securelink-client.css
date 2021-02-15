@@ -18,3 +18,255 @@ code  {
 	width: 100%;
 	float: left;
 }
+
+/* jqueryui tools */
+
+/** links */
+a:link, a:visited {
+  color: black; /*(internal value);*/
+  text-decoration: underline;
+  cursor: auto;
+}
+a:link:active, a:visited:active {
+  color: red; /*(internal value);*/
+} 
+p,h1,h2,h3 {
+	color: navy;
+}
+
+/** containers */
+#container {
+	background:	#999;
+	height:		100%;
+	/*margin:		0 auto;*/
+	width:		100%;
+	/*max-width:	900px; */
+	/*min-width:	700px; */
+	_width:		700px; /* min-width for IE6 */
+}
+.pane {
+	display:	none; /* will appear when layout inits */
+}
+
+/** tooltips */
+.tooltip{
+	max-width: 100% !important;
+	width: 2000px !important;
+}
+.tooltip-content{
+	background-color: #ffff00;
+}
+.tooltip-inner {
+	padding: 3px 8px;
+	color: #fff;
+	max-width: 100% !important;
+	width: 50em !important;
+	text-align: left !important;
+	background-color: #000;
+	border-radius: 4px;
+}
+
+/* Folders */
+
+.ui-tabs-left { width: 55em; }
+.ui-tabs-left .ui-tabs-nav { padding: .2em .1em .2em .2em; float: left; width: 12em; }
+.ui-tabs-left .ui-tabs-nav li { clear: left; width: 100%; border-bottom-width: 1px !important; border-right-width: 0 !important; margin: 0 -1px .2em 0; }
+.ui-tabs-left .ui-tabs-nav li a { display:block; }
+.ui-tabs-left .ui-tabs-nav li.ui-tabs-active { padding-bottom: 0; padding-right: .1em; border-right-width: 1px; }
+.ui-tabs-left .ui-tabs-panel { padding: 1em; float: right; width: 40em;}
+
+.ui-tabs-rightv .ui-tabs-nav { 
+	position: absolute; 
+	right: 0.2em; 
+	width: 19em; 
+	transform: rotate(90deg) translate(19.6em,0em); 
+	transform-origin: 100% 0%; 
+} 
+.ui-tabs-rightv .ui-tabs-panel { 
+	padding-right: 3.5em; 
+} 
+.ui-tabs-rightv .ui-tabs-panel { 
+	height: 18em; 
+}
+
+.ui-tabs-right { 
+	position: relative; 
+	padding-right: 6.5em; 
+} 
+.ui-tabs-right .ui-tabs-nav { 
+	position: absolute; 
+	right: 0.25em; 
+	top: 0.25em; 
+	bottom: 0.25em; 
+	width: 6em; 
+	padding: 0.2em 0.2em 0.2em 0em; 
+} 
+.ui-tabs-right .ui-tabs-nav li { 
+	width: 100%; 
+	border-left: none; 
+	border-bottom-width: 1px !important; 
+	-moz-border-radius: 0px 4px 4px 0px; 
+	-webkit-border-radius: 0px 4px 4px 0px; 
+	border-radius: 0px 4px 4px 0px; 
+	overflow: hidden; 
+} 
+.ui-tabs-right .ui-tabs-nav li.ui-tabs-selected, 
+.ui-tabs-right .ui-tabs-nav li.ui-state-active { 
+	left: -1px; 
+	border-left: 1px solid transparent; 
+} 
+.ui-tabs-right .ui-tabs-nav li a { 
+	width: 100%; 
+} 
+.ui-tabs-right .ui-tabs-panel { 
+	height: 38em; 
+}	
+
+.ui-tabs-leftv .ui-tabs-nav { 
+	position: absolute; 
+	width: 21em; 
+	transform: translate(-100%,0%) rotate(-90deg); 
+	transform-origin: 100% 0%; 
+} 
+.ui-tabs-leftv .ui-tabs-nav li { 
+	float: right; 
+} 
+.ui-tabs-leftv .ui-tabs-panel { 
+	padding-left: 3.5em; 
+} 
+.ui-tabs-leftv .ui-tabs-panel { 
+	height: 20em; 
+}
+
+.ui-tabs-top { 
+	padding: 0px; 
+	background: none; 
+	border-width: 0px; 
+} 
+.ui-tabs-top .ui-tabs-nav { 
+	padding-left: 0px; 
+	background: transparent; 
+	border-width: 0px 0px 1px 0px; 
+	-moz-border-radius: 0px; 
+	-webkit-border-radius: 0px; 
+	border-radius: 0px; 
+} 
+.ui-tabs-top .ui-tabs-panel { 
+	background: #f5f3e5 url(http://code.jquery.com/ui/1.8.23/themes/south-street/images/ui-bg_highlight-hard_100_f5f3e5_1x100.png) repeat-x scroll 50% top; 
+	border-width: 0px 1px 1px 1px; 
+}
+
+/*  Alt version
+.ui-tabs-left { width: 55em; }
+.ui-tabs-left .ui-tabs-nav { padding: .2em .1em .2em .2em; float: left; width: 12em; }
+.ui-tabs-left .ui-tabs-nav li { clear: left; width: 100%; border-bottom-width: 1px !important; border-right-width: 0 !important; margin: 0 -1px .2em 0; }
+.ui-tabs-left .ui-tabs-nav li a { display:block; }
+.ui-tabs-left .ui-tabs-nav li.ui-tabs-active { padding-bottom: 0; padding-right: .1em; border-right-width: 1px; }
+.ui-tabs-left .ui-tabs-panel { padding: 1em; float: right; width: 40em;}
+
+.ui-tabs-rightv .ui-tabs-nav { 
+	position: absolute; 
+	right: 0.2em; 
+	width: 19em; 
+	transform: rotate(90deg) translate(19.6em,0em); 
+	transform-origin: 100% 0%; 
+} 
+.ui-tabs-rightv .ui-tabs-panel { 
+	padding-right: 3.5em; 
+} 
+.ui-tabs-rightv .ui-tabs-panel { 
+	height: 18em; 
+}
+
+.ui-tabs-right { 
+	position: relative; 
+	padding-right: 6.5em; 
+} 
+.ui-tabs-right .ui-tabs-nav { 
+	position: absolute; 
+	right: 0.25em; 
+	top: 0.25em; 
+	bottom: 0.25em; 
+	width: 6em; 
+	padding: 0.2em 0.2em 0.2em 0em; 
+} 
+.ui-tabs-right .ui-tabs-nav li { 
+	width: 100%; 
+	border-left: none; 
+	border-bottom-width: 1px !important; 
+	-moz-border-radius: 0px 4px 4px 0px; 
+	-webkit-border-radius: 0px 4px 4px 0px; 
+	border-radius: 0px 4px 4px 0px; 
+	overflow: hidden; 
+} 
+.ui-tabs-right .ui-tabs-nav li.ui-tabs-selected, 
+.ui-tabs-right .ui-tabs-nav li.ui-state-active { 
+	left: -1px; 
+	border-left: 1px solid transparent; 
+} 
+.ui-tabs-right .ui-tabs-nav li a { 
+	width: 100%; 
+} 
+.ui-tabs-right .ui-tabs-panel { 
+	height: 38em; 
+}	
+
+.ui-tabs-leftv .ui-tabs-nav { 
+	position: absolute; 
+	width: 21em; 
+	transform: translate(-100%,0%) rotate(-90deg); 
+	transform-origin: 100% 0%; 
+} 
+.ui-tabs-leftv .ui-tabs-nav li { 
+	float: right; 
+} 
+.ui-tabs-leftv .ui-tabs-panel { 
+	padding-left: 3.5em; 
+} 
+.ui-tabs-leftv .ui-tabs-panel { 
+	height: 20em; 
+}
+
+.ui-tabs-top { 
+	padding: 0px; 
+	background: none; 
+	border-width: 0px; 
+} 
+.ui-tabs-top .ui-tabs-nav { 
+	padding-left: 0px; 
+	background: transparent; 
+	border-width: 0px 0px 1px 0px; 
+	-moz-border-radius: 0px; 
+	-webkit-border-radius: 0px; 
+	border-radius: 0px; 
+} 
+.ui-tabs-top .ui-tabs-panel { 
+	background: #f5f3e5 url(http://code.jquery.com/ui/1.8.23/themes/south-street/images/ui-bg_highlight-hard_100_f5f3e5_1x100.png) repeat-x scroll 50% top; 
+	border-width: 0px 1px 1px 1px; 
+}
+
+*/
+
+/* sites */
+.ui-banner {
+	text-align: center;
+	background-color: yellow;
+	border-width:1px;
+}
+
+/* Notebooks */
+
+.ui-button-retired:hover 	{ background-color: pink; }
+.ui-button-broken:hover 	{ background-color: red; }
+.ui-button-started:hover 	{ background-color: orange; }
+.ui-button-policed:hover 	{ background-color: yellow; }
+.ui-button-unfunded:hover 	{ background-color: green; }
+.ui-button-ready:hover 		{ background-color: blue; }
+
+.ui-header-retired 			{ background-color: pink; 	border-width:1px;border-style:solid;border-color:black;text-align:center; }
+.ui-header-broken 			{ background-color: red; 	border-width:1px;border-style:solid;border-color:black;text-align:center; }
+.ui-header-started 			{ background-color: orange; border-width:1px;border-style:solid;border-color:black;text-align:center; }
+.ui-header-policed 			{ background-color: yellow; border-width:1px;border-style:solid;border-color:black;text-align:center; }
+.ui-header-unfunded 		{ background-color: green; 	border-width:1px;border-style:solid;border-color:black;text-align:center; }
+.ui-header-ready 			{ background-color: blue; 	border-width:1px;border-style:solid;border-color:black;text-align:center; }										
+
