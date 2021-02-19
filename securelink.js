@@ -258,9 +258,9 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					if ( false && prof.Online ) 				// account already online
 						cb( new Error( "account online" ) );
 
-					else
-					if ( prof.Expires ? prof.Expires < new Date() : false )		// account expired
-						cb( new Error( "account expired" ) );
+					//else
+					//if ( prof.Expires ? prof.Expires < new Date() : false )		// account expired
+					//	cb( new Error( "account expired" ) );
 
 					else
 						cb( null, prof );
