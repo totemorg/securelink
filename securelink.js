@@ -267,9 +267,9 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				}
 
 				else
-				if ( account.endsWith("@totem.org") || account.endsWith(".mil") )  // need to validate cert here
+				if ( account.endsWith("@totem.org") )  // need to validate cert here
 					newAccount( sql, account, "", getExpires(expireTemp), (err,prof) => {
-						cb(null,prof);
+						cb(new Error("account exists"),prof);
 					});
 
 				else
