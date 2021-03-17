@@ -248,6 +248,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		}
 
 		function getProfile( sql, account, cb ) {
+			Log("getprofile on", account);
 			sql.query( getAccount, [encryptionPassword, account], (err,profs) => {		
 
 				if ( prof = profs[0] ) {			// account located
@@ -269,7 +270,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				else
 				if ( account.endsWith("@totem.org") )  // need to validate cert here
 					newAccount( sql, account, "", getExpires(expireTemp), (err,prof) => {
-						cb(new Error("account exists"),prof);
+						cb(new Error("guest account already exists"),prof);
 					});
 
 				else
@@ -284,7 +285,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 
 								else
 									cb( new Error("account not found") );
-							});				
+							});	
 					});
 			});
 		}
@@ -308,7 +309,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			allowSecureConnect = true,
 			[account,password] = login.split("/");
 		
-		//Log("login",[account,password]);
+		Log("login",[account,password,cb.name]);
 		
 		sqlThread( sql => {
 			switch ( cb.name ) {
