@@ -717,7 +717,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			scroll = document.getElementById("scroll"),
 			//lock = document.getElementById("lock"),
 			users = document.getElementById("users"),
-			rooms = document.getElementById("rooms"),
+			//rooms = document.getElementById("rooms"),
 			tick = document.getElementById("tick"),
 			tries = document.getElementById("tries");
 
