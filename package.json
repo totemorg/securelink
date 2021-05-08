@@ -4,7 +4,9 @@
   "description": "E2EE gov only",
   "main": "securelink",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+ 	"redoc": "jsdoc2md --template README.hbs --files securelink.js securelink-client.js >README.md; git commit -am 'redoc'; git  push agent master"
+
   },
   "repository": {
     "type": "git",

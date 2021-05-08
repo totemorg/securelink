@@ -1,9 +1,7 @@
 // UNCLASSIFIED 
 
 /**
-	@module SECLINK-CLIENT
-
-	[secureLink](https://github.com/totemstan/securelink.git) provides a secure link between 
+	Provides a secure link between 
 	clients and server for account login/out/reset operations, and provides a private (end-to-end
 	encrypted) message link between trusted clients. 
 	
@@ -14,6 +12,8 @@
 		
 		+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 		
+	@module SECLINK-CLIENT
+
 	@requires socketio
 	@requires openpgp
 	@requires uibase

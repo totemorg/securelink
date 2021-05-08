@@ -45,3 +45,60 @@ or [follow TOTEM milestones](http://totem.hopto.org/milestones.view) || [COE](ht
 ## License
 
 [MIT](LICENSE)
+
+## Modules
+
+<dl>
+<dt><a href="#module_SECLINK">SECLINK</a></dt>
+<dd><p>Provides a secure link between 
+    clients and server for account login/out/reset operations, and provides a private (end-to-end
+    encrypted) message link between trusted clients.</p>
+</dd>
+<dt><a href="#module_SECLINK-CLIENT">SECLINK-CLIENT</a></dt>
+<dd><p>Provides a secure link between 
+    clients and server for account login/out/reset operations, and provides a private (end-to-end
+    encrypted) message link between trusted clients. </p>
+<pre><code>This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
+methods for:
+
+    + SecureLink and dbSync sockets (Kill, Sockets, Join)
+    
+    + data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
+</code></pre>
+</dd>
+</dl>
+
+<a name="module_SECLINK"></a>
+
+## SECLINK
+Provides a secure link between 
+	clients and server for account login/out/reset operations, and provides a private (end-to-end
+	encrypted) message link between trusted clients.
+
+**Requires**: <code>module:socketio</code>, <code>module:socket.io</code>, <code>module:crypto</code>  
+<a name="module_SECLINK.config"></a>
+
+### SECLINK.config()
+Establish socketio channels for the SecureIntercom link (at store,restore,login,relay,status,
+		sync,join,exit,content) and the insecure dbSync link (at select,update,insert,delete).
+
+**Kind**: static method of [<code>SECLINK</code>](#module_SECLINK)  
+<a name="module_SECLINK-CLIENT"></a>
+
+## SECLINK-CLIENT
+Provides a secure link between 
+	clients and server for account login/out/reset operations, and provides a private (end-to-end
+	encrypted) message link between trusted clients. 
+	
+	This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
+	methods for:
+	
+		+ SecureLink and dbSync sockets (Kill, Sockets, Join)
+		
+		+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
+
+**Requires**: <code>module:socketio</code>, <code>module:openpgp</code>, <code>module:uibase</code>  
+
+* * *
+
+&copy; 2012 ACMESDS
