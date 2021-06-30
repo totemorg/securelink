@@ -111,7 +111,8 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	
 	server: null,	// established on config
 	sio: null,		// established on config
-	
+	host: "totem.nga.mil",
+			
 	inspector: (doc,to,cb) => { throw new Error("inspector() not configured"); },
 	
 	sqls: {
@@ -131,6 +132,10 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	},
 	
 	isTrusted: account => true,
+	
+	error: {
+		blockLogin: new Error("this account not allowed for this login")
+	},
 	
 	Login: (login,cb) => {
 		function passwordOk( pass ) {
@@ -225,8 +230,8 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		function genGuest( sql, account, expires, cb ) {
 			genCode(accountLen, code => {
 				//Log("gen guest", code);
-				newAccount( sql, "guest"+code+"@totem.org", password, expires, (err,prof) => {
-					//Log("madeacct", prof);
+				newAccount( sql, `guest${code}@${host}`, password, expires, (err,prof) => {
+					Log("made account", prof);
 					if ( !err )
 						cb( prof );
 
@@ -248,7 +253,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		}
 
 		function getProfile( sql, account, cb ) {
-			Log("getprofile on", account);
+			Log("get profile", account);
 			sql.query( getAccount, [encryptionPassword, account], (err,profs) => {		
 
 				if ( prof = profs[0] ) {			// account located
@@ -268,7 +273,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				}
 
 				else
-				if ( account.endsWith("@totem.org") )  // need to validate cert here
+				if ( account.endsWith(host) )  // need to validate cert here
 					newAccount( sql, account, "", getExpires(expireTemp), (err,prof) => {
 						cb(new Error("guest account already exists"),prof);
 					});
@@ -303,40 +308,51 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			tokenLen = 4;
 
 		const
-			{ isTrusted, sendMail, sqlThread } = SECLINK,
+			{ isTrusted, sendMail, sqlThread, host } = SECLINK,
 			{ getAccount, addAccount, addToken, getToken, getSession, addSession, endSession, setPassword } = sqls,
 			encryptionPassword = ENV.USERS_PASS,
 			allowSecureConnect = true,
-			[account,password] = login.split("/");
+			[account,password] = login.split("/"),
+			isGuest = account.startsWith("guest") && account.endsWith(host);
 		
 		Log("login",[account,password,cb.name]);
 		
 		sqlThread( sql => {
 			switch ( cb.name ) {
 				case "resetPassword":		// host requesting a password reset
-					genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
-						cb( `See your ${account} email for further instructions` );
+					if ( isGuest )
+						cb( error.blockLogin );
+					
+					else
+						genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
+							cb( `See your ${account} email for further instructions` );
 
-						sendMail({
-							to: account,
-							subject: "Totem password reset request",
-							text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
+							sendMail({
+								to: account,
+								subject: "Totem password reset request",
+								text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
+							});
 						});
-					});
+					
 					break;
 			
 				case "newAccount": 
-					genPassword( password => {
-						//Log("gen", account, password);
-						newAccount( sql, account, password, getExpires(expireTemp), (err,prof) => {
-							cb( "Account verification required" );
+					if ( isGuest )
+						genPassword( password => {
+							//Log("gen", account, password);
+							newAccount( sql, account, password, getExpires(expireTemp), (err,prof) => {
+								cb( "Account verification required" );
+							});
+							sendMail({
+								to: account,
+								subject: "Totem account verification",
+								text: `You may login with ${account}/${password}`
+							});
 						});
-						sendMail({
-							to: account,
-							subject: "Totem account verification",
-							text: `You may login with ${account}/${password}`
-						});
-					});
+					
+					else
+						cb(error.blockLogin);
+					
 					break;
 					
 				case "newSession":
@@ -380,7 +396,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 							cb( err, null );
 						
 						else
-							cb( null, prof )
+							cb( null, prof );
 					});
 			}			
 		});
