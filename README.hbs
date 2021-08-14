@@ -1,6 +1,6 @@
 # SecureLink
 
-**SecureLink** provides a secure link between US gov client through the use of PGP end-to-end encryption.  	Like its 
+**SecureLink** provides a secure link between TOTEM clients through the use of PGP end-to-end encryption.  	Like its 
 Socket.IO predecessors, SocketIO provides json-based web sockets, though it has hooks to support secure binary sockets 
 for future VoIP, video, etc applications.
 
