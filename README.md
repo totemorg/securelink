@@ -16,21 +16,6 @@ Feel free to [submit and status TOTEM issues](http://totem.hopto.org/issues.view
 [inspect TOTEM requirements](http://totem.hopto.org/reqts.view) || [COE](https://totem.west.ile.nga.ic.gov/reqts.view) || [SBU](https://totem.nga.mil/reqts.view), [browse TOTEM holdings](http://totem.hopto.org/) || [COE](https://totem.west.ile.nga.ic.gov/) || [SBU](https://totem.nga.mil/), 
 or [follow TOTEM milestones](http://totem.hopto.org/milestones.view) || [COE](https://totem.west.ile.nga.ic.gov/milestones.view) || [SBU](https://totem.nga.mil/milestones.view).
 
-## Use
-
-	const
-		{ Login } = SECLINK = require("securelink");
-		
-	// Use CB = resetPassword || newAccount || newSession || guestSession
-	
-	Login( "account/password", function CB( err, profile ) {
-		if ( err ) 
-			// handle error condition
-			
-		else	// have a good user profile
-			console.log(profile);
-	});
-	
 ## Protocol
 
 	Function	Client					Channel 			Server
@@ -65,9 +50,10 @@ or [follow TOTEM milestones](http://totem.hopto.org/milestones.view) || [COE](ht
 
 <dl>
 <dt><a href="#module_SECLINK">SECLINK</a></dt>
-<dd><p>Provides a secure link between 
-    clients and server for account login/out/reset operations, and provides a private (end-to-end
-    encrypted) message link between trusted clients.</p>
+<dd><p>Provides a secure link between totem clients and the totem server.
+Provides account login/out/reset sessions and a private (end-to-end
+encrypted) message link between trusted clients. 
+Documented in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
 </dd>
 <dt><a href="#module_SECLINK-CLIENT">SECLINK-CLIENT</a></dt>
 <dd><p>Provides a secure link between 
@@ -86,11 +72,33 @@ methods for:
 <a name="module_SECLINK"></a>
 
 ## SECLINK
-Provides a secure link between 
-	clients and server for account login/out/reset operations, and provides a private (end-to-end
-	encrypted) message link between trusted clients.
+Provides a secure link between totem clients and the totem server.
+Provides account login/out/reset sessions and a private (end-to-end
+encrypted) message link between trusted clients. 
+Documented in accordance with [jsdoc](https://jsdoc.app/).
 
 **Requires**: <code>module:socketio</code>, <code>module:socket.io</code>, <code>module:crypto</code>  
+
+* [SECLINK](#module_SECLINK)
+    * [.Login(login, cb)](#module_SECLINK.Login)
+    * [.config()](#module_SECLINK.config)
+
+<a name="module_SECLINK.Login"></a>
+
+### SECLINK.Login(login, cb)
+Start a secure link and return the user profile corresponding for the supplied 
+account/password login.  The provided callback(err,profile) = 
+resetPassword || newAccount || newSession || guestSession determines the session
+type being requested.
+
+**Kind**: static method of [<code>SECLINK</code>](#module_SECLINK)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| login | <code>String</code> | account/password credentials |
+| cb | <code>function</code> | callback to process the session |
+
 <a name="module_SECLINK.config"></a>
 
 ### SECLINK.config()

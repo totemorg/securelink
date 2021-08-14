@@ -1,15 +1,16 @@
 // UNCLASSIFIED
 
 /**
-	Provides a secure link between 
-	clients and server for account login/out/reset operations, and provides a private (end-to-end
-	encrypted) message link between trusted clients. 
-	
-	@module SECLINK
-	
-	@requires socketio
-	@requires socket.io
-	@requires crypto
+Provides a secure link between totem clients and the totem server.
+Provides account login/out/reset sessions and a private (end-to-end
+encrypted) message link between trusted clients. 
+Documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
+
+@module SECLINK
+
+@requires socketio
+@requires socket.io
+@requires crypto
 */
 
 const		// globals
@@ -136,6 +137,17 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	error: {
 		blockLogin: new Error("this account not allowed for this login")
 	},
+	
+/**
+Start a secure link and return the user profile corresponding for the supplied 
+account/password login.  The provided callback(err,profile) = 
+resetPassword || newAccount || newSession || guestSession determines the session
+type being requested.
+
+@cfg {Function}
+@param {String} login account/password credentials
+@param {Function} cb callback to process the session 
+*/
 	
 	Login: (login,cb) => {
 		function passwordOk( pass ) {
