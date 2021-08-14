@@ -1,6 +1,6 @@
 # SecureLink
 
-**SecureLink** is built on TOTEM's SocketIO and provides a secure link between TOTEM clients 
+**SecureLink** is built on [TOTEM's SocketIO](https://github.com/totemstan/socketio) and provides a secure link between TOTEM clients 
 through the use of PGP end-to-end encryption.
 
 **SecureLink** also provides antibot technology to challenge clients, and a secure login mechanisim.
@@ -56,14 +56,13 @@ Documented in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
 </dd>
 <dt><a href="#module_SECLINK-CLIENT">SECLINK-CLIENT</a></dt>
 <dd><p>Provides a secure link between 
-    clients and server for account login/out/reset operations, and provides a private (end-to-end
-    encrypted) message link between trusted clients. </p>
-<pre><code>This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
-methods for:
+clients and server for account login/out/reset operations, and provides a private (end-to-end
+encrypted) message link between trusted clients. </p>
+<p>This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
+methods for:</p>
+<pre><code>+ SecureLink and dbSync sockets (Kill, Sockets, Join)
 
-    + SecureLink and dbSync sockets (Kill, Sockets, Join)
-    
-    + data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
++ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 </code></pre>
 </dd>
 </dl>
@@ -109,15 +108,15 @@ Establish socketio channels for the SecureIntercom link (at store,restore,login,
 
 ## SECLINK-CLIENT
 Provides a secure link between 
-	clients and server for account login/out/reset operations, and provides a private (end-to-end
-	encrypted) message link between trusted clients. 
-	
-	This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
-	methods for:
-	
-		+ SecureLink and dbSync sockets (Kill, Sockets, Join)
-		
-		+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
+clients and server for account login/out/reset operations, and provides a private (end-to-end
+encrypted) message link between trusted clients. 
+
+This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
+methods for:
+
+	+ SecureLink and dbSync sockets (Kill, Sockets, Join)
+
+	+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 
 **Requires**: <code>module:socketio</code>, <code>module:openpgp</code>, <code>module:uibase</code>  
 

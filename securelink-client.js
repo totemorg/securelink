@@ -1,22 +1,22 @@
 // UNCLASSIFIED 
 
 /**
-	Provides a secure link between 
-	clients and server for account login/out/reset operations, and provides a private (end-to-end
-	encrypted) message link between trusted clients. 
-	
-	This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
-	methods for:
-	
-		+ SecureLink and dbSync sockets (Kill, Sockets, Join)
-		
-		+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
-		
-	@module SECLINK-CLIENT
+Provides a secure link between 
+clients and server for account login/out/reset operations, and provides a private (end-to-end
+encrypted) message link between trusted clients. 
 
-	@requires socketio
-	@requires openpgp
-	@requires uibase
+This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
+methods for:
+
+	+ SecureLink and dbSync sockets (Kill, Sockets, Join)
+
+	+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
+
+@module SECLINK-CLIENT
+
+@requires socketio
+@requires openpgp
+@requires uibase
 */
 
 //============= notice actions (defined by the site skin) that support the SecureIntercom (socket.io/openpgp)
