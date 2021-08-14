@@ -7,7 +7,10 @@ through the use of PGP end-to-end encryption.
 	
 ## Installation
 
-Clone [secureLink](https://github.com/totemstan/securelink) || [COE](https://sc.appdev.proj.coe/acmesds/securelink) || [SBU](https://gitlab.gsmil/acmesds/securelink) into your PROJECT/securelink folder.   
+Clone the following into your PROJECT folder
+
++ [SECLINK secure link](https://github.com/totemstan/securelink) || [COE](https://sc.appdev.proj.coe/acmesds/securelink) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
++ [SOCKETIO web sockets](https://github.com/totemstan/socketio) || [COE](https://sc.appdev.proj.coe/acmesds/socketio) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
 
 ## Contacting, Contributing, Following
 
