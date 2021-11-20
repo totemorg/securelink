@@ -220,7 +220,7 @@ type being requested.
 				},  password, encryptionPassword, allowSecureConnect ], 	
 				(err,info) => {
 					//Log(err,prof);
-					//Log("gen",err,account);
+					//Log("genacct",err,account,prof);
 					cb(err, prof);
 				});
 		}
@@ -287,7 +287,7 @@ type being requested.
 				else
 				if ( account.endsWith(host) )  // need to validate cert here
 					newAccount( sql, account, "", getExpires(expireTemp), (err,prof) => {
-						cb(new Error("guest account already exists"),prof);
+						cb(err ? new Error("guest account already exists") : null,prof);
 					});
 
 				else
