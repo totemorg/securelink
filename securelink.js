@@ -191,33 +191,42 @@ type being requested.
 			return CRYPTO.randomBytes( len/2, (err, code) => cb( code.toString("hex") ) );
 		}
 
-		function newAccount( sql, account, password, expires, cb) {
+		function newProfile(account,expires) {
 			const
 				trust = isTrusted( account );
 
+			return {
+				Banned: "",  // nonempty to ban user
+				QoS: 10,  // [secs] job regulation interval
+				Credit: 100,  // job cred its
+				Charge: 0,	// current job charges
+				LikeUs: 0,	// number of user likeus
+				Trusted: trust,
+				Expires: expires,
+				//Password: "",	
+				//SecureCom: trust ? account : "",	// default securecom passphrase
+				Challenge: !trust,		// enable to challenge user at session join
+				Client: account,
+				User: "",		// default user ID (reserved for login)
+				Login: "",	// existing login ID
+				Group: "app",		// default group name (db to access)
+				Repoll: true,	// challenge repoll during active sessions
+				Retries: 5,		// challenge number of retrys before session killed
+				Timeout: 30,	// challenge timeout in secs
+				Expires: getExpires( trust ? expireTemp : expirePerm ),
+				Message: `What is #riddle?`		// challenge message with riddles, ids, etc	
+			};
+		}
+
+		function newAccount( sql, account, password, expires, cb) {
 			sql.query(
 				addAccount,
-				[ prof = {
-					Banned: "",  // nonempty to ban user
-					QoS: 10,  // [secs] job regulation interval
-					Credit: 100,  // job cred its
-					Charge: 0,	// current job charges
-					LikeUs: 0,	// number of user likeus
-					Trusted: trust,
-					Expires: expires,
-					//Password: "",	
-					//SecureCom: trust ? account : "",	// default securecom passphrase
-					Challenge: !trust,		// enable to challenge user at session join
-					Client: account,
-					User: "",		// default user ID (reserved for login)
-					Login: "",	// existing login ID
-					Group: "app",		// default group name (db to access)
-					Repoll: true,	// challenge repoll during active sessions
-					Retries: 5,		// challenge number of retrys before session killed
-					Timeout: 30,	// challenge timeout in secs
-					Expires: getExpires( trust ? expireTemp : expirePerm ),
-					Message: `What is #riddle?`		// challenge message with riddles, ids, etc	
-				},  password, encryptionPassword, allowSecureConnect ], 	
+				
+				[ 	prof = newProfile(account,expires),  
+				 	password, 
+				 	encryptionPassword, 
+				 	allowSecureConnect ],
+				
 				(err,info) => {
 					//Log(err,prof);
 					//Log("genacct",err,account,prof);
@@ -330,87 +339,98 @@ type being requested.
 		Log("login",[account,password,cb.name]);
 		
 		sqlThread( sql => {
-			switch ( cb.name ) {
-				case "resetPassword":		// host requesting a password reset
-					if ( isGuest )
-						cb( error.blockLogin );
-					
-					else
-						genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
-							cb( `See your ${account} email for further instructions` );
-
-							sendMail({
-								to: account,
-								subject: "Totem password reset request",
-								text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
-							});
-						});
-					
-					break;
 			
-				case "newAccount": 
-					if ( isGuest )
-						genPassword( password => {
-							//Log("gen", account, password);
-							newAccount( sql, account, password, getExpires(expireTemp), (err,prof) => {
-								cb( "Account verification required" );
-							});
-							sendMail({
-								to: account,
-								subject: "Totem account verification",
-								text: `You may login with ${account}/${password}`
-							});
-						});
-					
-					else
-						cb(error.blockLogin);
-					
-					break;
-					
-				case "newSession":
-					getProfile( sql, account, (err, prof) => {
-						if ( err ) 
-							cb( err+"", null );
-						
-						else
-						if ( prof.TokenID ) 	// requires password reset
-							if ( passwordOk(password) )
-								sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
-									Log("password reset", err);
-									if ( err ) 
-										cb( "Your password could not be reset at this time" );
+			if (sql)	// mysql connected so ...
+				switch ( cb.name ) {
+					case "resetPassword":		// host requesting a password reset
+						if ( isGuest )
+							cb( error.blockLogin );
 
-									else
-										cb( `You may login to ${prof.Client} using your new password.` );
+						else
+							genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
+								cb( `See your ${account} email for further instructions` );
+
+								sendMail({
+									to: account,
+									subject: "Totem password reset request",
+									text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
 								});
+							});
+
+						break;
+
+					case "newAccount": 
+						if ( isGuest )
+							genPassword( password => {
+								//Log("gen", account, password);
+								newAccount( sql, account, password, getExpires(expireTemp), (err,prof) => {
+									cb( "Account verification required" );
+								});
+								sendMail({
+									to: account,
+									subject: "Totem account verification",
+									text: `You may login with ${account}/${password}`
+								});
+							});
+
+						else
+							cb(error.blockLogin);
+
+						break;
+
+					case "newSession":
+						getProfile( sql, account, (err, prof) => {
+							if ( err ) 
+								cb( err+"", null );
 
 							else
-								cb( "password not complex enough" );
+							if ( prof.TokenID ) 	// requires password reset
+								if ( passwordOk(password) )
+									sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
+										Log("password reset", err);
+										if ( err ) 
+											cb( "Your password could not be reset at this time" );
 
-						else
-						if (password == prof.Password)		// match account
-							genSession( sql, account, (sessionID,expires) => cb(null, {
-								id: sessionID, 
-								expires: expires, 
-								profile: prof
-							}) );
+										else
+											cb( `You may login to ${prof.Client} using your new password.` );
+									});
 
-						else
-							cb( "bad account/password" );
-					});
-					break;
+								else
+									cb( "password not complex enough" );
+
+							else
+							if (password == prof.Password)		// match account
+								genSession( sql, account, (sessionID,expires) => cb(null, {
+									id: sessionID, 
+									expires: expires, 
+									profile: prof
+								}) );
+
+							else
+								cb( "bad account/password" );
+						});
+						break;
+
+					case "guestSession":
+					default:
+						getProfile( sql, account, (err, prof) => {
+							//Log("guestprof", err);
+							if ( err ) 
+								cb( err, null );
+
+							else
+								cb( null, prof );
+						});
+				}
 			
-				case "guestSession":
-				default:
-					getProfile( sql, account, (err, prof) => {
-						//Log("guestprof", err);
-						if ( err ) 
-							cb( err, null );
+			else	// mysql offline so ...
+				switch ( cb.name ) {
+					case "guestSession":
+						break;
 						
-						else
-							cb( null, prof );
-					});
-			}			
+					default:
+						cb(error.blockLogin);
+				}
 		});
 	},
 	
