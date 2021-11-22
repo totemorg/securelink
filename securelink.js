@@ -339,6 +339,7 @@ type being requested.
 		Log("login",[account,password,cb.name]);
 		
 		sqlThread( sql => {
+			Log("login sql", sql);
 			
 			if (sql)	// mysql connected so ...
 				switch ( cb.name ) {
@@ -424,13 +425,7 @@ type being requested.
 				}
 			
 			else	// mysql offline so ...
-				switch ( cb.name ) {
-					case "guestSession":
-						break;
-						
-					default:
-						cb(error.blockLogin);
-				}
+				cb(null, newProfile(account,getExpires(expireTemp)) );
 		});
 	},
 	
