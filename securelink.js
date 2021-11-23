@@ -4,7 +4,8 @@
 Provides a secure link between totem clients and the totem server.
 Provides account login/out/reset sessions and a private (end-to-end
 encrypted) message link between trusted clients. 
-Documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
+
+This module in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
 @module SECLINK
 
@@ -98,7 +99,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		return tar;
 	},
 	
-	sqlThread: () => { throw new Error("no sqlThread"); },
+	sqlThread: () => { throw new Error("sqlThread not configured"); },
 	
 	sendMail: opts => Log("no sendMail", opts),
 	
@@ -112,9 +113,13 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	
 	server: null,	// established on config
 	sio: null,		// established on config
+	
+	/**
+	Name of host for attributing host-owned accounts.
+	*/
 	host: "totem.nga.mil",
 			
-	inspector: (doc,to,cb) => { throw new Error("inspector() not configured"); },
+	inspector: (doc,to,cb) => { throw new Error("inspector not configured"); },
 	
 	sqls: {
 		//addProfile: "INSERT INTO openv.profiles SET ?",
@@ -132,22 +137,26 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		endSession: "UPDATE openv.profiles SET SessionID=null WHERE Client=?",		
 	},
 	
+	/**
+	Test if an account is "trusted" to use the secure com channel.
+	*/
+	
 	isTrusted: account => true,
 	
 	error: {
-		blockLogin: new Error("this account not allowed for this login")
+		blockLogin: new Error("account blocked")
 	},
 	
-/**
-Start a secure link and return the user profile corresponding for the supplied 
-account/password login.  The provided callback(err,profile) = 
-resetPassword || newAccount || newSession || guestSession determines the session
-type being requested.
+	/**
+	Start a secure link and return the user profile corresponding for the supplied 
+	account/password login.  The provided callback(err,profile) = 
+	resetPassword || newAccount || newSession || guestSession determines the session
+	type being requested.
 
-@cfg {Function}
-@param {String} login account/password credentials
-@param {Function} cb callback to process the session 
-*/
+	@cfg {Function}
+	@param {String} login account/password credentials
+	@param {Function} cb callback to process the session 
+	*/
 	
 	Login: (login,cb) => {
 		function passwordOk( pass ) {
@@ -429,6 +438,9 @@ type being requested.
 		});
 	},
 	
+	/**
+	Test response of client during a session challenge.
+	*/
 	testClient: (client,guess,res) => {
 			
 		const
@@ -473,8 +485,8 @@ type being requested.
 	},
 	
 	/**
-		Establish socketio channels for the SecureIntercom link (at store,restore,login,relay,status,
-		sync,join,exit,content) and the insecure dbSync link (at select,update,insert,delete).
+	Establish socketio channels for the SecureIntercom link (at store,restore,login,relay,status,
+	sync,join,exit,content) and the insecure dbSync link (at select,update,insert,delete).
 	*/
 	config: opts => {
 		
