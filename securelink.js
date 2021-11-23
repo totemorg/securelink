@@ -149,8 +149,8 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	
 	/**
 	Start a secure link and return the user profile corresponding for the supplied 
-	account/password login.  The provided callback(err,profile) = 
-	resetPassword || newAccount || newSession || guestSession determines the session
+	account/password login.  The provided callback  X(err,profile) where X =  
+	resetPassword || newAccount || newSession || guestSession determines the login session
 	type being requested.
 
 	@cfg {Function}
@@ -283,7 +283,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		}
 
 		function getProfile( sql, account, cb ) {
-			Log("get profile", account);
+			//Log("get profile", account);
 			sql.query( getAccount, [encryptionPassword, account], (err,profs) => {		
 
 				if ( prof = profs[0] ) {			// account located
@@ -345,11 +345,9 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);
 		
-		Log("login",[account,password,cb.name]);
+		Log("login", {user: `${account}/${password}` , session: cb.name});
 		
 		sqlThread( sql => {
-			Log("login sql", sql);
-			
 			if (sql)	// mysql connected so ...
 				switch ( cb.name ) {
 					case "resetPassword":		// host requesting a password reset
