@@ -7,17 +7,17 @@ through the use of PGP end-to-end encryption.
 	
 ## Installation
 
-Clone **ATOMIC** from one of its repos:
+Clone **SecureLink** from one of its repos:
 
-	git clone https://github.com/totemstan/atomic
-	git clone https://sc.appdev.proj.coe/acmesds/atomic
-	git clone https://gitlab.west.nga.ic.gov/acmesds/atomic
+	git clone https://github.com/totemstan/securelink
+	git clone https://sc.appdev.proj.coe/acmesds/securelink
+	git clone https://gitlab.west.nga.ic.gov/acmesds/securelink
 
 and define its env vars:
 
 	 PASS_ENCRYPTION = passphrase to encrypt user passwords
 
-## Dependent Modules
+Dependent modules:
 
 + ENUMS [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
 + SOCKETIO [WWW](https://github.com/totemstan/socketio) || [COE](https://sc.appdev.proj.coe/acmesds/socketio) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
