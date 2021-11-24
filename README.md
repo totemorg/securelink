@@ -15,7 +15,7 @@ Clone **SecureLink** from one of its repos:
 
 and define its env vars:
 
-	 PASS_ENCRYPTION = passphrase to encrypt user passwords
+	PASS_ENCRYPTION = passphrase to encrypt user passwords
 
 Dependent modules:
 
