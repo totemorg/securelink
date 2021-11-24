@@ -340,7 +340,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		const
 			{ isTrusted, sendMail, sqlThread, host } = SECLINK,
 			{ getAccount, addAccount, addToken, getToken, getSession, addSession, endSession, setPassword } = sqls,
-			encryptionPassword = ENV.USERS_PASS,
+			encryptionPassword = ENV.PASS_ENCRYPTION,
 			allowSecureConnect = true,
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);

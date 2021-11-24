@@ -13,7 +13,11 @@ Clone **ATOMIC** from one of its repos:
 	git clone https://sc.appdev.proj.coe/acmesds/atomic
 	git clone https://gitlab.west.nga.ic.gov/acmesds/atomic
 
-as well as its dependent modules:
+and define its env vars:
+
+	 PASS_ENCRYPTION = passphrase to encrypt user passwords
+
+You must also clone its dependent modules (and define their required env vars):
 
 + ENUMS [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
 + SOCKETIO [WWW](https://github.com/totemstan/socketio) || [COE](https://sc.appdev.proj.coe/acmesds/socketio) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
