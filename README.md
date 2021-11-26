@@ -15,7 +15,8 @@ Clone **SecureLink** from one of its repos:
 
 and define its env vars:
 
-	PASS_ENCRYPTION = passphrase to encrypt user passwords
+	PASS_PASS = passphrase to encrypt user passwords ["nopass"]
+	HOST_NAME = name of hosting site ["nohost"]
 
 Dependent modules:
 
