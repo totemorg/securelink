@@ -117,7 +117,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	/**
 	Name of host for attributing host-owned accounts.
 	*/
-	host: "totem.nga.mil",
+	host: ENV.HOST_NAME || "nohost",
 			
 	inspector: (doc,to,cb) => { throw new Error("inspector not configured"); },
 	
@@ -340,15 +340,15 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		const
 			{ isTrusted, sendMail, sqlThread, host } = SECLINK,
 			{ getAccount, addAccount, addToken, getToken, getSession, addSession, endSession, setPassword } = sqls,
-			encryptionPassword = ENV.PASS_ENCRYPTION,
+			encryptionPassword = ENV.PASS_PASS || "nopass",
 			allowSecureConnect = true,
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);
 		
 		Log(cb.name, `${account}/${password}` );
 		
-		sqlThread( sql => {
-			if (sql)	// mysql connected so ...
+		if ( sqlThread() )	// mysql online so ...
+			sqlThread( sql => {
 				switch ( cb.name ) {
 					case "resetPassword":		// host requesting a password reset
 						if ( isGuest )
@@ -430,10 +430,10 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 								cb( null, prof );
 						});
 				}
-			
-			else	// mysql offline so ...
-				cb(null, newProfile(account,getExpires(expireTemp)) );
-		});
+			});
+		
+		else	// mysql offline so ...
+			cb(null, newProfile(account,getExpires(expireTemp)) );
 	},
 	
 	/**
