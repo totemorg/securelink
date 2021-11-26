@@ -345,7 +345,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);
 		
-		Log("login", {user: `${account}/${password}` , session: cb.name});
+		Log(cb.name, `${account}/${password}` );
 		
 		sqlThread( sql => {
 			if (sql)	// mysql connected so ...
