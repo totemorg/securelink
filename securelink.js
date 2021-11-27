@@ -531,7 +531,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 				}),  */
 
-		Log("config socketio", SIO.path() );
+		Log("config socketio");
 
 		SIO.on("connect", socket => {  	// define side channel listeners when client calls io()
 			Log("listening to side channels");
