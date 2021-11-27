@@ -115,9 +115,9 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	sio: null,		// established on config
 	
 	/**
-	Name of host for attributing host-owned accounts.
+	Domain name of host for attributing domain-owned accounts.
 	*/
-	host: ENV.HOST_NAME || "nohost",
+	host: ENV.DOMAIN_NAME || "nodomain",
 			
 	inspector: (doc,to,cb) => { throw new Error("inspector not configured"); },
 	

@@ -16,13 +16,18 @@ Clone **SecureLink** from one of its repos:
 and define its env vars:
 
 	PASS_PASS = passphrase to encrypt user passwords ["nopass"]
-	HOST_NAME = name of hosting site ["nohost"]
+	DOMAIN_NAME = domain name of hosting service ["nodomain"]
 
 Dependent modules:
 
 + **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
 + **SOCKETIO** [WWW](https://github.com/totemstan/socketio) [COE](https://sc.appdev.proj.coe/acmesds/socketio) [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
 
+## Program Reference
+<details>
+<summary>
+<i>Open/Close</i>
+</summary>
 ## Modules
 
 <dl>
@@ -66,7 +71,7 @@ This module in accordance with [jsdoc](https://jsdoc.app/).
 <a name="module_SECLINK.host"></a>
 
 ### SECLINK.host
-Name of host for attributing host-owned accounts.
+Domain name of host for attributing domain-owned accounts.
 
 **Kind**: static property of [<code>SECLINK</code>](#module_SECLINK)  
 <a name="module_SECLINK.isTrusted"></a>
@@ -119,6 +124,7 @@ methods for:
 	+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 
 **Requires**: <code>module:socketio</code>, <code>module:openpgp</code>, <code>module:uibase</code>  
+</details>
 
 ## Contacting, Contributing, Following
 
