@@ -143,8 +143,8 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	
 	isTrusted: account => true,
 	
-	error: {
-		blockLogin: new Error("account blocked")
+	errors: {
+		loginBlocked: new Error("account blocked")
 	},
 	
 	/**
@@ -352,7 +352,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 				switch ( cb.name ) {
 					case "resetPassword":		// host requesting a password reset
 						if ( isGuest )
-							cb( error.blockLogin );
+							cb( errors.loginBlocked );
 
 						else
 							genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
@@ -382,7 +382,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 							});
 
 						else
-							cb(error.blockLogin);
+							cb(errors.loginBlocked);
 
 						break;
 
