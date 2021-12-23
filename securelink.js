@@ -27,7 +27,7 @@ const
 	// For working socketio
 	SOCKETIO = require("socketio");
 
-const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports = {
+const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 	
 	Log: (...args) => console.log(">>>secLink",args),
 	
@@ -150,8 +150,8 @@ const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports
 		noGuests: new Error("guests blocked"),
 		userOnline: new Error( "account already online" ),
 		userExpired: new Error( "account expired" ),
-		noPass: new Error("password could not be reset at this time"),
-		resetPass: new Error("login with new password"),
+		resetFailed: new Error("password could not be reset at this time"),
+		//resetPass: new Error("login with new password"),
 		badPass: new Error("password not complex enough"),
 		badLogin: new Error("bad login"),
 		userPending: new Error("account verification pending -- see email")
@@ -210,14 +210,15 @@ const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports
 			return CRYPTO.randomBytes( len/2, (err, code) => cb( code.toString("hex") ) );
 		}
 
-		function newAccount( sql, account, password, expires, cb) {
+		function newAccount( sql, account, password, cb) {
+			const
+				{ guest } = SECLINK;
 			
 			if ( guest ) {
 				const
 					trust = isTrusted( account ),
 					prof = Copy({
 						Trusted: trust,
-						Expires: expires,
 						Challenge: !trust,		// enable to challenge user at session join
 						Client: account,
 						Expires: getExpires( trust ? expireTemp : expirePerm )
@@ -229,6 +230,7 @@ const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports
 				 	encryptionPassword, 
 				 	allowSecureConnect 
 				], (err,info) => {
+					//Log("add acct>>>>>", err, prof);
 					cb( err ? null : prof );
 				});
 			}
@@ -267,37 +269,23 @@ const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports
 		}  */
 
 		function genToken( sql, account, cb ) {
-			genCode(tokenLen, code => {
-				sql.query( addToken, [ code,account], err => {
-					if ( err )	// has to be unqiue
+			genCode(tokenLen, token => {
+				sql.query( addToken, [ token, account], err => {
+					if ( err )	// retry until token is unique
 						genToken( sql, account, cb );
 
-					else cb( code, getExpires(expireSession) );
+					else 	// relay unique token
+						cb( token, getExpires(expireSession) );
 				});
 			});
 		}
 
 		function getProfile( sql, account, cb ) {
-			//Log("get profile", account);
+			//Log("get profile", account, host);
 			sql.query( getAccount, [encryptionPassword, account], (err,profs) => {		
 
-				if ( prof = profs[0] ) 			// account located
-					cb( prof );
+				cb( err ? null : profs[0] || null );
 
-				else
-				if ( account.endsWith(host) )  // domestic account
-					newAccount( sql, account, "", getExpires(expireTemp), prof => cb( prof ) );
-
-				else							// foreign account
-					sql.query( getToken, [account], (err,profs) => {		// try to locate by tokenID
-						if ( prof = profs[0] ) 
-							cb( prof );
-						
-						else		// try to locate by sessionID
-							sql.query( getSession, [account], (err,profs) => {		// try to locate by sessionID
-								cb( profs[0] || null );
-							});	
-					});
 			});
 		}
 		
@@ -321,7 +309,7 @@ const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);
 		
-		Log(cb.name, `${account}/${password}` );
+		Log(cb.name, login );
 		
 		sqlThread( sql => {
 			switch ( cb.name ) {
@@ -330,13 +318,13 @@ const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports
 						cb( errors.loginBlocked );
 
 					else
-						genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
+						genToken( sql, account, (token,expires) => {	// gen a token account						
 							cb( errors.userPending );
 
 							sendMail({
 								to: account,
 								subject: "Totem password reset request",
-								text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
+								text: `Please login using ${token}/NEWPASSWORD by ${expires}`
 							});
 						});
 
@@ -346,13 +334,18 @@ const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports
 					if ( isGuest )			// only guests can request a new account
 						genPassword( password => {
 							//Log("gen", account, password);
-							newAccount( sql, account, password, getExpires(expireTemp), prof => {
-								cb( prof ? errors.userPending : errors.badLogin );
-							});
-							sendMail({
-								to: account,
-								subject: "Totem account verification",
-								text: `You may login with ${account}/${password}`
+							newAccount( sql, account, password, prof => {
+								if ( prof ) {
+									cb( prof );
+									sendMail({
+										to: account,
+										subject: "Totem account verification",
+										text: `You may login with ${account}/${password} until ${prof.Expires}`
+									});
+								}
+								
+								else
+									cb( errors.badLogin );
 							});
 						});
 
@@ -363,56 +356,88 @@ const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports
 
 				case "newSession":			// host requesting a new/auth session 
 				case "authSession":
-					getProfile( sql, account, prof => {
-						
-						if ( prof )	{	// have a valid user login
-							if ( prof.Banned ) 				// account was banned for some reason
-								cb(	new Error(prof.Banned) );
+					
+					if ( isGuest )
+						cb( errors.badLogin );
+					
+					else
+						getProfile( sql, account, prof => {
 
-							/*
-							else
-							if ( prof.Online ) 	// account already online
-								cb( errors.userOnline );
-							*/
-						
-							/*
-							else
-							if ( prof.Expires ? prof.Expires < new Date() : false )
-								cb( errors.userExpired );
-							*/
-						
-							else
-							if ( prof.TokenID ) 	// requires password reset
-								if ( passwordOk(password) )
-									sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
-										cb( err ? errors.noPass : errors.resetPass );
-									});
+							if ( prof )	{	// have a valid user login
+								if ( prof.Banned ) 				// account banned for some reason
+									cb(	new Error(prof.Banned) );
+
+								/*
+								else
+								if ( prof.Online ) 	// account already online
+									cb( errors.userOnline );
+								*/
+
+								/*
+								else
+								if ( prof.Expires ? prof.Expires < new Date() : false )
+									cb( errors.userExpired );
+								*/
 
 								else
-									cb( errors.badPass );
+								if ( prof.TokenID ) 	// requires password reset
+									if ( passwordOk(password) )
+										sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
+											cb( err ? errors.resetFailed : errors.resetPass );
+										});
 
-							else
-							if (password == prof.Password)		// validate login
-								genSession( sql, account, (sessionID,expires) => cb(null, {
-									id: sessionID, 
-									expires: expires, 
-									profile: prof
-								}) );
+									else
+										cb( errors.badPass );
+
+								else
+								if (password == prof.Password)		// validate login
+									genSession( sql, account, (sessionID,expires) => cb(null, {
+										id: sessionID, 
+										expires: expires, 
+										profile: prof
+									}) );
+
+								else
+									cb( errors.badLogin );
+							}
 
 							else
 								cb( errors.badLogin );
-						}
-						
-						else
-							cb( errors.badLogin );
 
-					});
+						});
+					
 					break;
 
 				case "guestSession":		// host requesting a noauth/guest session
 				case "noauthSession":
 				default:
-					getProfile( sql, account, prof => cb( prof ? null : errors.badLogin, prof ) );
+					getProfile( sql, account, prof => {
+						//Log("prof>>>>", prof);
+						if ( prof ) 
+							cb( null, prof );
+						
+						else
+						//if ( account.endsWith(host) )  // domestic account
+							newAccount( sql, account, "", prof => {
+								if ( prof ) 
+									cb( null, prof );
+								
+								else
+									cb( errors.badLogin );
+							});
+
+						/*
+						else							// foreign account
+							sql.query( getToken, [account], (err,profs) => {		// try to locate by tokenID
+								if ( prof = profs[0] ) 
+									cb( null, prof );
+
+								else		// try to locate by sessionID
+									sql.query( getSession, [account], (err,profs) => {		// try to locate by sessionID
+										cb( err, err ? null : profs[0] || null );
+									});	
+							}); */
+					});
 			}
 		});
 	},
@@ -502,7 +527,7 @@ const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports
 		}
 		
 		const 
-			{ inspector, sqlThread, sendMail, server, challenge } = Copy( opts, SECLINK, "." ),
+			{ inspector, sqlThread, guest, sendMail, server, challenge } = Copy( opts, SECLINK, "." ),
 			{ getProfile, addSession } = sqls;
 
 		const
@@ -514,6 +539,12 @@ const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports
 
 		Log("config socketio");
 
+		if (guest) {
+			delete guest.ID;
+			delete guest.SecureCom;
+			delete guest.Password;
+		}
+		
 		SIO.on("connect", socket => {  	// define side channel listeners when client calls io()
 			Log("listening to side channels");
 
