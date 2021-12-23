@@ -27,7 +27,7 @@ const
 	// For working socketio
 	SOCKETIO = require("socketio");
 
-const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
+const { sqls, Each, Copy, Log, Login, guest, errors } = SECLINK = module.exports = {
 	
 	Log: (...args) => console.log(">>>secLink",args),
 	
@@ -103,6 +103,8 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	
 	sendMail: opts => Log("no sendMail", opts),
 	
+	guest: null,		// guest profiles - guesting disabled by default
+	
 	challenge: {	//< for antibot client challenger 
 		extend: 0,
 		store: [],
@@ -144,7 +146,15 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 	isTrusted: account => true,
 	
 	errors: {
-		loginBlocked: new Error("account blocked")
+		loginBlocked: new Error("account blocked"),
+		noGuests: new Error("guests blocked"),
+		userOnline: new Error( "account already online" ),
+		userExpired: new Error( "account expired" ),
+		noPass: new Error("password could not be reset at this time"),
+		resetPass: new Error("login with new password"),
+		badPass: new Error("password not complex enough"),
+		badLogin: new Error("bad login"),
+		userPending: new Error("account verification pending -- see email")
 	},
 	
 	/**
@@ -173,7 +183,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 					"tempmail.ninja":1,
 					"getnada.com":1,
 					"protonmail.com":1,
-					"maildrop.cc":1,
+					"maildrop	.cc":1,
 					"":1,
 				},
 
@@ -200,47 +210,31 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			return CRYPTO.randomBytes( len/2, (err, code) => cb( code.toString("hex") ) );
 		}
 
-		function newProfile(account,expires) {
-			const
-				trust = isTrusted( account );
-
-			return {
-				Banned: "",  // nonempty to ban user
-				QoS: 10,  // [secs] job regulation interval
-				Credit: 100,  // job cred its
-				Charge: 0,	// current job charges
-				LikeUs: 0,	// number of user likeus
-				Trusted: trust,
-				Expires: expires,
-				//Password: "",	
-				//SecureCom: trust ? account : "",	// default securecom passphrase
-				Challenge: !trust,		// enable to challenge user at session join
-				Client: account,
-				User: "",		// default user ID (reserved for login)
-				Login: "",	// existing login ID
-				Group: "app",		// default group name (db to access)
-				Repoll: true,	// challenge repoll during active sessions
-				Retries: 5,		// challenge number of retrys before session killed
-				Timeout: 30,	// challenge timeout in secs
-				Expires: getExpires( trust ? expireTemp : expirePerm ),
-				Message: `What is #riddle?`		// challenge message with riddles, ids, etc	
-			};
-		}
-
 		function newAccount( sql, account, password, expires, cb) {
-			sql.query(
-				addAccount,
+			
+			if ( guest ) {
+				const
+					trust = isTrusted( account ),
+					prof = Copy({
+						Trusted: trust,
+						Expires: expires,
+						Challenge: !trust,		// enable to challenge user at session join
+						Client: account,
+						Expires: getExpires( trust ? expireTemp : expirePerm )
+					}, Copy( guest, {} ));
 				
-				[ 	prof = newProfile(account,expires),  
+				sql.query( addAccount, [ 
+					prof,  
 				 	password, 
 				 	encryptionPassword, 
-				 	allowSecureConnect ],
-				
-				(err,info) => {
-					//Log(err,prof);
-					//Log("genacct",err,account,prof);
-					cb(err, prof);
+				 	allowSecureConnect 
+				], (err,info) => {
+					cb( err ? null : prof );
 				});
+			}
+			
+			else 
+				cb( null );
 		}
 
 		function genSession( sql, account, cb ) {
@@ -257,6 +251,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			});
 		}
 
+		/*
 		function genGuest( sql, account, expires, cb ) {
 			genCode(accountLen, code => {
 				//Log("gen guest", code);
@@ -269,7 +264,7 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 						genGuest( sql, account, expires, cb );
 				});
 			});
-		}
+		}  */
 
 		function genToken( sql, account, cb ) {
 			genCode(tokenLen, code => {
@@ -286,40 +281,21 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 			//Log("get profile", account);
 			sql.query( getAccount, [encryptionPassword, account], (err,profs) => {		
 
-				if ( prof = profs[0] ) {			// account located
-					if ( prof.Banned ) 				// account was banned for some reason
-						cb(	new Error(prof.Banned) );
-
-					else
-					if ( false && prof.Online ) 				// account already online
-						cb( new Error( "account online" ) );
-
-					//else
-					//if ( prof.Expires ? prof.Expires < new Date() : false )		// account expired
-					//	cb( new Error( "account expired" ) );
-
-					else
-						cb( null, prof );
-				}
+				if ( prof = profs[0] ) 			// account located
+					cb( prof );
 
 				else
-				if ( account.endsWith(host) )  // need to validate cert here
-					newAccount( sql, account, "", getExpires(expireTemp), (err,prof) => {
-						cb(err ? new Error("guest account already exists") : null,prof);
-					});
+				if ( account.endsWith(host) )  // domestic account
+					newAccount( sql, account, "", getExpires(expireTemp), prof => cb( prof ) );
 
-				else
+				else							// foreign account
 					sql.query( getToken, [account], (err,profs) => {		// try to locate by tokenID
 						if ( prof = profs[0] ) 
-							cb( null, prof );
+							cb( prof );
 						
 						else		// try to locate by sessionID
 							sql.query( getSession, [account], (err,profs) => {		// try to locate by sessionID
-								if ( prof = profs[0] ) 
-									cb( null, prof );
-
-								else
-									cb( new Error("account not found") );
+								cb( profs[0] || null );
 							});	
 					});
 			});
@@ -347,67 +323,76 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 		
 		Log(cb.name, `${account}/${password}` );
 		
-		if ( sqlThread() )	// mysql online so ...
-			sqlThread( sql => {
-				switch ( cb.name ) {
-					case "resetPassword":		// host requesting a password reset
-						if ( isGuest )
-							cb( errors.loginBlocked );
+		sqlThread( sql => {
+			switch ( cb.name ) {
+				case "resetPassword":		// host requesting a password reset
+					if ( isGuest )			// guests cannot requests a reset
+						cb( errors.loginBlocked );
 
-						else
-							genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
-								cb( `See your ${account} email for further instructions` );
+					else
+						genToken( sql, account, (tokenAccount,expires) => {	// gen a token account						
+							cb( errors.userPending );
 
-								sendMail({
-									to: account,
-									subject: "Totem password reset request",
-									text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
-								});
+							sendMail({
+								to: account,
+								subject: "Totem password reset request",
+								text: `Please login using !!${tokenAccount}/NEWPASSWORD by ${expires}`
 							});
+						});
 
-						break;
+					break;
 
-					case "newAccount": 
-						if ( isGuest )
-							genPassword( password => {
-								//Log("gen", account, password);
-								newAccount( sql, account, password, getExpires(expireTemp), (err,prof) => {
-									cb( "Account verification required" );
-								});
-								sendMail({
-									to: account,
-									subject: "Totem account verification",
-									text: `You may login with ${account}/${password}`
-								});
+				case "newAccount": 			// host requesting a new account
+					if ( isGuest )			// only guests can request a new account
+						genPassword( password => {
+							//Log("gen", account, password);
+							newAccount( sql, account, password, getExpires(expireTemp), prof => {
+								cb( prof ? errors.userPending : errors.badLogin );
 							});
+							sendMail({
+								to: account,
+								subject: "Totem account verification",
+								text: `You may login with ${account}/${password}`
+							});
+						});
 
-						else
-							cb(errors.loginBlocked);
+					else
+						cb( errors.loginBlocked );
 
-						break;
+					break;
 
-					case "newSession":
-						getProfile( sql, account, (err, prof) => {
-							if ( err ) 
-								cb( err+"", null );
+				case "newSession":			// host requesting a new/auth session 
+				case "authSession":
+					getProfile( sql, account, prof => {
+						
+						if ( prof )	{	// have a valid user login
+							if ( prof.Banned ) 				// account was banned for some reason
+								cb(	new Error(prof.Banned) );
 
+							/*
+							else
+							if ( prof.Online ) 	// account already online
+								cb( errors.userOnline );
+							*/
+						
+							/*
+							else
+							if ( prof.Expires ? prof.Expires < new Date() : false )
+								cb( errors.userExpired );
+							*/
+						
 							else
 							if ( prof.TokenID ) 	// requires password reset
 								if ( passwordOk(password) )
 									sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
-										Log("password reset", err);
-										if ( err ) 
-											cb( "Your password could not be reset at this time" );
-
-										else
-											cb( `You may login to ${prof.Client} using your new password.` );
+										cb( err ? errors.noPass : errors.resetPass );
 									});
 
 								else
-									cb( "password not complex enough" );
+									cb( errors.badPass );
 
 							else
-							if (password == prof.Password)		// match account
+							if (password == prof.Password)		// validate login
 								genSession( sql, account, (sessionID,expires) => cb(null, {
 									id: sessionID, 
 									expires: expires, 
@@ -415,25 +400,21 @@ const { sqls, Each, Copy, Log, Login } = SECLINK = module.exports = {
 								}) );
 
 							else
-								cb( "bad account/password" );
-						});
-						break;
+								cb( errors.badLogin );
+						}
+						
+						else
+							cb( errors.badLogin );
 
-					case "guestSession":
-					default:
-						getProfile( sql, account, (err, prof) => {
-							//Log("guestprof", err);
-							if ( err ) 
-								cb( err, null );
+					});
+					break;
 
-							else
-								cb( null, prof );
-						});
-				}
-			});
-		
-		else	// mysql offline so ...
-			cb(null, newProfile(account,getExpires(expireTemp)) );
+				case "guestSession":		// host requesting a noauth/guest session
+				case "noauthSession":
+				default:
+					getProfile( sql, account, prof => cb( prof ? null : errors.badLogin, prof ) );
+			}
+		});
 	},
 	
 	/**
