@@ -566,10 +566,10 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 					sql.query(getProfile, [client], (err,profs) => { 
 
 						/**
-							Create an antibot challenge and relay to client with specified profile parameters
+						Create an antibot challenge and relay to client with specified profile parameters
 
-							@param {String} client being challenged
-							@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
+						@param {String} client being challenged
+						@param {Object} profile with a .Message riddle mask
 						*/
 						function getChallenge (profile, cb) { 
 							/**
@@ -586,8 +586,11 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 									N = store.length,
 									randRiddle = () => store[rand(N)];
 
-								return msg
-										.parse$(prof)
+								//Log("make", N, randRiddle, prof);
+								
+								if (N)	
+									return msg
+										//.parse$(prof)
 										.replace(/\#riddle/g, pat => {
 											var QA = randRiddle();
 											riddles.push( QA.A );
@@ -608,11 +611,14 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 										.replace(/\#bio/g, pat => {
 											return "bio challenge TBD";
 										});
+								
+								else
+									return msg;
 							}
 
 							const
 								{ riddler, store } = challenge,
-								{ Message, IDs, Retries, Timeout } = profile,
+								{ Message, Retries, Timeout } = profile,
 								riddles = [],
 								probe = makeRiddles( Message, riddles, profile );
 
