@@ -357,8 +357,9 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 
 					break;
 
-				case "newSession":			// host requesting a new/auth session 
+				case "newSession":			// host requesting an authorized session 
 				case "loginSession":
+				case "authSession":
 					
 					getProfile( sql, account, prof => {
 						if ( prof )	{	// have a valid user login
@@ -398,11 +399,14 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 							else
 								cb( errors.loginBlocked );
 						}
+						
+						else
+							cb( errors.badLogin );
 					});
 					
 					break;
 
-				case "guestSession":		// host requesting a noauth/guest session
+				case "guestSession":		// host requesting a guest session
 				case "noauthSession":
 				default:
 					
@@ -544,10 +548,10 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		}
 		
 		SIO.on("connect", socket => {  	// define side channel listeners when client calls io()
-			Log("listening to side channels");
+			Log("listening to sockets");
 
 			socket.on("join", (req,socket) => {	// Traps client connect when client emits "join" request
-				Log("admit client", req);
+				Log("socket admit client", req);
 				const
 					{client,message,insecureok} = req;
 
@@ -573,11 +577,11 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						*/
 						function getChallenge (profile, cb) { 
 							/**
-								Check clients response req.query to a antibot challenge.
+							Check clients response req.query to a antibot challenge.
 
-								@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
-								@param {Array} rid List of riddles returned
-								@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
+							@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
+							@param {Array} rid List of riddles returned
+							@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
 							*/
 							function makeRiddles (msg,riddles,prof) { 
 								const
@@ -704,7 +708,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				const
 					{client,ip,location,message} = req;
 
-				Log("store client history", req);
+				Log("socket store client history", req);
 
 				sqlThread( sql => {
 					sql.query(
@@ -729,7 +733,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				const
 					{client,ip,location,message} = req;
 
-				Log("restore client history", req);
+				Log("socket restore client history", req);
 				sqlThread( sql => {
 					sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
 					[client],
@@ -767,7 +771,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				switch ( account ) {
 					case "reset":
 						Login( password, function resetPassword(status) {
-							Log("login pswd reset", status);
+							Log("socket resetPassword", status);
 							SIO.clients[password].emit("status", { 
 								message: status,
 							});
@@ -785,7 +789,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						
 					default:
 						Login( login, function newSession(err,ses) {
-							Log("login session", err, ses);
+							Log("socket newSession", err, ses);
 							try {
 								if ( err ) 
 									SIO.clients[client].emit("status", { 
@@ -823,7 +827,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				const
 					{ from,message,to,insecureok,route } = req;
 
-				Log("relay message", req);
+				Log("socket relay", req);
 
 				if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
 					SIO.emitOthers(from, "relay", {	// broadcast message to everyone
@@ -883,7 +887,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			});
 
 			socket.on("announce", req => {
-				Log("client announced", req);
+				Log("socket announce client", req);
 
 				const
 					{ client,pubKey } = req;
@@ -912,7 +916,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			});  
 			
 			socket.on("kill", (req,socket) => {
-				Log("kill", req);
+				Log("socket kill session", req);
 				
 				socket.end();
 			});

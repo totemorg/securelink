@@ -1,27 +1,21 @@
 // UNCLASSIFIED 
 
 /**
-Provides a secure link between 
-clients and server for account login/out/reset operations, and provides a private (end-to-end
-encrypted) message link between trusted clients. 
+Provides UIs for operating private (end-to-end encrypted) messaging link 
+between trusted clients.  The UIs herein are created in the /site.jade and support:
 
-This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
-methods for:
-
+	+ client login/out/reset operations
 	+ SecureLink and dbSync sockets (Kill, Sockets, Join)
-
 	+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 
-@module SECLINK-CLIENT
+@module secureLink-client
 
 @requires socketio
 @requires openpgp
 @requires uibase
 */
 
-//============= notice actions (defined by the site skin) that support the SecureIntercom (socket.io/openpgp)
-
-function notice_login() {
+function secure_login() {
 
 	const
 		{ secureLink,bang,initSecureLink,iosocket } = SECLINK,
@@ -29,6 +23,8 @@ function notice_login() {
 		lock = document.getElementById("lock"),
 		users = document.getElementById("users");
 
+	alert(notice.value);
+	
 	if ( notice.value.startsWith(bang) ) 
 		try {
 			const
@@ -51,7 +47,7 @@ function notice_login() {
 
 }
 
-function notice_scroll() {
+function secure_scroll() {
 	const
 		{ secureLink } = SECLINK,
 		scroll = document.getElementById("scroll"),
@@ -60,7 +56,7 @@ function notice_scroll() {
 	notice.value = secureLink.history[scroll.value];
 }
 
-function notice_save() {
+function secure_save() {
 	const
 		{ secureLink,iosocket,bang } = SECLINK,
 		notice = document.getElementById("notice");
@@ -79,7 +75,7 @@ function notice_save() {
 	
 }
 
-function notice_load() {
+function secure_load() {
 	const
 		{ secureLink,iosocket,bang } = SECLINK,
 		notice = document.getElementById("notice");
@@ -93,7 +89,7 @@ function notice_load() {
 		alert(`supply ${bang}encryption password`);
 }
 
-function notice_delete() {
+function secure_delete() {
 	const
 		{ secureLink } = SECLINK;
 	
@@ -101,7 +97,7 @@ function notice_delete() {
 	secureLink.history = [];
 }
 
-function notice_signal() {		//< send secure notice message to server
+function secure_signal() {		//< send secure notice message to server
 	const
 		{ bang, secureLink, iosocket } = SECLINK,
 		{ secure } = secureLink;
@@ -575,7 +571,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 								tries.style = "display:none";
 								notice.size = 75;
 								notice.value = `Welcome ${ioClient}`;
-								notice.onchange= notice_signal; // "notice_signal()";
+								notice.onchange= secure_signal; // "secure_signal()";
 							}
 
 							else {
@@ -752,12 +748,6 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 	}	
 };
 
-[  // extend String
-].Extend(String);
-
-[ // extend Array
-].Extend(Array);
-
 //============ Probe client information
 
 if (SECLINK.probeAgent) {  // Discover clients brower
@@ -772,7 +762,7 @@ if (SECLINK.probeAgent) {  // Discover clients brower
 		}
 }
 
-if (SECLINK.probePlatform) { // Doscover clients platform
+if (SECLINK.probePlatform) { // Discover clients platform
 	SECLINK.platform = navigator.platform || "";
 	SECLINK.onLinux = navigator.platform.indexOf("Linux") == 0;
 	SECLINK.onWindows = navigator.platform.indexOf("Win") == 0;

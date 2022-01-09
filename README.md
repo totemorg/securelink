@@ -36,14 +36,11 @@ Provides account login/out/reset sessions and a private (end-to-end
 encrypted) message link between trusted clients. </p>
 <p>This module in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
 </dd>
-<dt><a href="#module_SECLINK-CLIENT">SECLINK-CLIENT</a></dt>
-<dd><p>Provides a secure link between 
-clients and server for account login/out/reset operations, and provides a private (end-to-end
-encrypted) message link between trusted clients. </p>
-<p>This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
-methods for:</p>
-<pre><code>+ SecureLink and dbSync sockets (Kill, Sockets, Join)
-
+<dt><a href="#module_secureLink-client">secureLink-client</a></dt>
+<dd><p>Provides UIs for operating private (end-to-end encrypted) messaging link 
+between trusted clients.  The UIs herein are created in the /site.jade and support:</p>
+<pre><code>+ client login/out/reset operations
++ SecureLink and dbSync sockets (Kill, Sockets, Join)
 + data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 </code></pre>
 </dd>
@@ -108,18 +105,14 @@ Establish socketio channels for the SecureIntercom link (at store,restore,login,
 	sync,join,exit,content) and the insecure dbSync link (at select,update,insert,delete).
 
 **Kind**: static method of [<code>SECLINK</code>](#module_SECLINK)  
-<a name="module_SECLINK-CLIENT"></a>
+<a name="module_secureLink-client"></a>
 
-## SECLINK-CLIENT
-Provides a secure link between 
-clients and server for account login/out/reset operations, and provides a private (end-to-end
-encrypted) message link between trusted clients. 
+## secureLink-client
+Provides UIs for operating private (end-to-end encrypted) messaging link 
+between trusted clients.  The UIs herein are created in the /site.jade and support:
 
-This module -- required by all next-level frameworks (like jquery, extjs, etc) -- provides 
-methods for:
-
+	+ client login/out/reset operations
 	+ SecureLink and dbSync sockets (Kill, Sockets, Join)
-
 	+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 
 **Requires**: <code>module:socketio</code>, <code>module:openpgp</code>, <code>module:uibase</code>  
