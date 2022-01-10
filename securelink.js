@@ -124,7 +124,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 	
 	notify: opts => {},
 	
-	guest: null,		// guest profiles - guesting disabled by default
+	guest: null,		// guest profile - guesting disabled by default
 	
 	/**
 	Domain name of host for attributing domain-owned accounts.
@@ -162,6 +162,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		//resetPass: new Error("login with new password"),
 		badPass: new Error("password not complex enough"),
 		badLogin: new Error("bad login"),
+		nonGuest: new Error("must be guest"),
 		userPending: new Error("account verification pending -- see email")
 	},
 	
@@ -173,7 +174,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 
 	@cfg {Function}
 	@param {String} login account/password credentials
-	@param {Function} cb callback to process the session 
+	@param {Function} cb callback (err,profile) to process the session 
 	*/
 	
 	Login: (login,cb) => {
@@ -238,13 +239,15 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				 	encryptionPassword, 
 				 	allowSecureConnect 
 				], (err,info) => {
-					//Log("add acct>>>>>", err, prof);
+					if (err) Log("add acct>>>>>", err, info, prof);
 					cb( err ? null : prof );
 				});
 			}
 			
-			else 
+			else {
+				Log("Guest accounts disabled");
 				cb( null );
+			}
 		}
 
 		function genSession( sql, account, cb ) {
@@ -312,7 +315,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);
 		
-		Log(cb.name, login );
+		Log(cb.name, login, isGuest, host );
 		
 		sqlThread( sql => {
 			switch ( cb.name ) {
@@ -334,7 +337,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 					break;
 
 				case "newAccount": 			// host requesting a new account
-					if ( isGuest )			// only guests can request a new account
+					if ( true )			// only guests can request a new account
 						genPassword( password => {
 							//Log("gen", account, password);
 							newAccount( sql, account, password, prof => {
@@ -353,7 +356,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						});
 
 					else
-						cb( errors.loginBlocked );
+						cb( errors.nonGuest );
 
 					break;
 
@@ -382,6 +385,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 							if ( prof.TokenID ) 	// password reset pending
 								if ( passwordOk(password) )
 									sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
+										Log("setpass", account, password);
 										cb( err ? errors.resetFailed : errors.resetPass );
 									});
 
@@ -390,14 +394,13 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 
 							else
 							if (password == prof.Password)		// validate login
-								genSession( sql, account, (sessionID,expires) => cb(null, {
+								genSession( sql, account, (sessionID,expires) => cb(null, Copy({
 									id: sessionID, 
-									expires: expires, 
-									profile: prof
-								}) );
+									expires: expires
+								}, prof ) ));
 
 							else
-								cb( errors.loginBlocked );
+								cb( errors.badPass );
 						}
 						
 						else
@@ -411,7 +414,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				default:
 					
 					getProfile( sql, account, prof => {
-						//Log("prof>>>>", prof);
+						Log("getprof>>>>", prof);
 						if ( prof ) 
 							if ( prof.Banned ) 
 								cb(	new Error(prof.Banned) );	
@@ -421,6 +424,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						
 						else
 							newAccount( sql, account, "", prof => {
+								Log("newacct>>>>", prof);
 								if ( prof ) 
 									cb( null, prof );
 								
@@ -766,7 +770,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 					{ login, client } = req,
 					[account,password] = login.split("/");
 				
-				//Log("login", [account,password]);
+				Log("login", [account,password]);
 
 				switch ( account ) {
 					case "reset":
@@ -788,38 +792,55 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						break;
 						
 					default:
-						Login( login, function newSession(err,ses) {
-							Log("socket newSession", err, ses);
-							try {
+						if ( password )
+							Login( login, function newSession(err,prof) {
+								Log("socket newSession", err, prof);
+								try {
+									if ( err ) 
+										SIO.clients[client].emit("status", { // return error msg to client
+											message: err+"",
+										});
+
+									else {
+										//sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
+
+										SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
+											message: "Login completed",
+											cookie: `session=${prof.sessionID}; expires=${prof.expires.toUTCString()}; path=/`
+											//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
+										});
+
+										SIO.emit("remove", {	// remove old client then
+											client: client
+										});
+
+										SIO.emit("accept", {	// accept new client
+											client: account,
+											pubKey: prof.pubKey,
+										}); 
+									}
+								}
+
+								catch (err) {
+									Log(err, "Login propagation failed");
+								}
+							});
+						
+						else
+							Login( login, function newAccount(err,prof) {
+								Log("socket newAccount", err, prof);
 								if ( err ) 
-									SIO.clients[client].emit("status", { 
+									SIO.clients[client].emit("status", { // return error msg to client
 										message: err+"",
 									});
 
-								else {
-									//sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
-
-									SIO.clients[client].emit("status", { 
-										message: "Login completed",
-										cookie: `session=${ses.id}; expires=${ses.expires.toUTCString()}; path=/`
+								else
+									SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
+										message: "Check email",
+										cookie: `session=${prof.sessionID}; expires=${prof.expires.toUTCString()}; path=/`
 										//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
-									});
-
-									SIO.emit("remove", {
-										client: client
-									});
-
-									SIO.emit("accept", {
-										client: account,
-										pubKey: ses.prof.pubKey,
-									}); 
-								}
-							}
-							
-							catch (err) {
-								Log(err, "Login propagation failed");
-							}
-					});
+									});								
+							});
 				}
 			});
 			

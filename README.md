@@ -90,7 +90,7 @@ Start a secure link and return the user profile corresponding for the supplied
 | Param | Type | Description |
 | --- | --- | --- |
 | login | <code>String</code> | account/password credentials |
-| cb | <code>function</code> | callback to process the session |
+| cb | <code>function</code> | callback (err,profile) to process the session |
 
 <a name="module_SECLINK.testClient"></a>
 
