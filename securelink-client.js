@@ -87,8 +87,7 @@ function secure_delete() {
 
 function secure_signal() {		//< send secure notice message to server
 	const
-		{ bang, secureLink, iosocket } = SECLINK,
-		{ secure } = secureLink;
+		{ bang, secureLink, iosocket } = SECLINK;
 
 	if ( !secureLink ) { 
 		alert("SecureLink never connected");
@@ -99,18 +98,17 @@ function secure_signal() {		//< send secure notice message to server
 		notice = document.getElementById("notice"),
 		upload = document.getElementById("upload");
 	
-	
 	//Log(secureLink, iosocket, secure);
 
 	const
 		{ pubKeys } = SECLINK,
-		{ priKey, passphrase, lookups, history, myRoom } = secureLink;
+		{ secure, priKey, passphrase, lookups, history, myRoom } = secureLink;
 
 	//Log(pubKeys, priKey);
 
 	const
 		files = Array.from(upload.files),
-		[msg, to] = route = notice.value.ReplaceKeys(lookups).split("=>");
+		[msg, to] = notice.value.replaceKeys(lookups).split("=>");
 
 	function readTextFiles( msg, files, cb) {
 		var todo = files.length;
@@ -136,57 +134,39 @@ function secure_signal() {		//< send secure notice message to server
 	}
 
 	function send(msg,to) {
-		(to||"").replace(/ /g,"").split(",").forEach( to => {
+		Log("signal", msg, ioClient, "=>", to );
 
-			function send(msg,to) {
-				Log("signal", msg, ioClient, "=>", to);
-				
-				history.push({
-					msg: msg,
-					user: to,
-					dir: "to",
-					on: (new Date()).toUTCString()
-				});  
-				
-				if ( pubKey = pubKeys[to] )		// use secureLink when target in ecosystem
-					Encrypt( passphrase, msg, pubKey, priKey, msg => {
-						//Log(notice.value,msg);
-						iosocket.emit("relay", {		// send encrypted pgp-armored message
-							message: msg,
-							from: ioClient,
-							to: to,
-							room: myRoom,
-							route: route.slice(2),
-							insecureok: !secure
-						});
-					});
+		history.push({
+			msg: msg,
+			user: to,
+			dir: "to",
+			on: (new Date()).toUTCString()
+		});  
 
-				else						// use insecure link when target not in ecosystem
-					iosocket.emit("relay", {		// send raw message
-						message: msg,
-						from: ioClient,
-						to: to.startsWith(bang) ? to.substr(bang.length) : to,
-						route: route.slice(2),
-						insecureok: !secure || to.startsWith(bang)
-					});
-			}
+		if ( pubKey = pubKeys[to] )		// use secureLink when target in ecosystem
+			Encrypt( passphrase, msg, pubKey, priKey, msg => {
+				Log(notice.value,msg);
+				iosocket.emit("relay", {		// send encrypted pgp-armored message
+					message: msg,
+					from: ioClient,
+					to: to,
+					room: myRoom,
+					route: msg, //route.slice(2),
+					insecureok: !secure
+				});
+			});
 
-			switch (to) {
-				case "":
-					send(msg,ioClient);
-					break;
-
-				case "$all":
-					Each( pubKeys, to => send(msg,to) );
-					break;
-
-				default:
-					send( msg,to);
-			}
-		});
+		else						// use insecure link when target not in ecosystem
+			iosocket.emit("relay", {		// send raw message
+				message: msg,
+				from: ioClient,
+				to: to, //to.startsWith(bang) ? to.substr(bang.length) : to,
+				route: msg, //route.slice(2),
+				insecureok: true // !secure || to.startsWith(bang)
+			});
 	}
 
-	//Log(msg,"=>",to,lookups);
+	Log(msg,"=>",to);
 	if ( files.length ) 
 		readTextFiles( msg, files, msg => {
 			send(msg,to);
@@ -195,7 +175,17 @@ function secure_signal() {		//< send secure notice message to server
 		});
 
 	else
-		send(msg,to);
+	if ( to )
+		to.replace(/ /g,"").split(",").forEach( to => {
+			if ( to == "$all" )
+				Each( pubKeys, to => send(msg,to) );
+			
+			else
+				send( msg, to );
+		});
+	
+	//else
+		//alert("missing target");
 
 }
 
@@ -502,7 +492,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					pubKey: pubKey,
 				});	
 
-				Log("keys", pubKey,priKey,lookups);
+				//Log("keys", pubKey,priKey,lookups);
 				cb(secure);	
 			});
 		
@@ -519,7 +509,6 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					{ secureLink } = SECLINK,
 					{ history } = secureLink;
 				
-				//alert(msg);
 				if ( msg.startsWith("??") ) {	// challenge user
 					probe.innerHTML = msg.substr(2);
 					notice.size = 5;
@@ -585,7 +574,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				}
 			}
 
-			Join( location, Copy({		// join totem's socket.io manager
+			Join( location, Copy({		// join the socket.io manager
 
 				close: req => alert("secureLink closed!"),
 				
@@ -630,13 +619,15 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 				},
 
 				relay: req => {			// relay message or public key
+					Log("relay", req);
+
 					const
 						{ secureLink } = SECLINK,
 						{ from,to,message,score } = req,
 						forMe = (to == ioClient) || (to == "all");
 
-					Log("relay", req);
-
+					//Log(">>>>forme", from,to,ioClient,forMe);
+					
 					if ( forMe )
 						if ( secureLink.passphrase && message.indexOf("BEGIN PGP MESSAGE")>=0 )
 							Decrypt( secureLink.passphrase, message, pubKeys[ioClient], secureLink.priKey, 
@@ -671,7 +662,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					if ( req.cookie ) {
 						document.cookie = req.cookie; 
 
-						alert(req.cookie + " => " + document.cookie);
+						//alert(req.cookie + " => " + document.cookie);
 						window.open(window.location+"", "_self");
 						//document.cookie = "";
 					}

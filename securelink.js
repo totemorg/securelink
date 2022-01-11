@@ -112,7 +112,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		
 		getAccount:	"SELECT *,aes_decrypt(unhex(Password),?) AS Password, hex(aes_encrypt(ID,?)) AS SessionID FROM openv.profiles WHERE Client=?", 
 		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,':',Password),'')", 
-		setPassword: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,':',Password),''), TokenID=null WHERE TokenID=?",
+		setPassword: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,':',Password),'') WHERE Client=?",
 		getToken: "SELECT Client FROM openv.profiles WHERE TokenID=? AND Expires>now()", 
 		addToken: "UPDATE openv.profiles SET TokenID=? WHERE Client=?",
 		getSession: "SELECT * FROM openv.profiles WHERE SessionID=? LIMIT 1",
@@ -378,6 +378,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 					
 					getProfile( sql, account, prof => {
 						if ( prof )	{	// have a valid user login
+							//Log(password, prof);
 							if ( prof.Banned ) 				// account banned for some reason
 								cb(	new Error(prof.Banned) );
 
@@ -415,7 +416,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 								}, prof ) ));*/
 
 							else
-								cb( errors.badPass );
+								cb( errors.badLogin );
 						}
 						
 						else
@@ -610,34 +611,6 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 									randRiddle = () => store[rand(N)];
 								
 								return N ? randRiddle() : {Q:"1+0", A:"1"};
-								/*
-								if (N)	
-									return msg
-										//.parse$(prof)
-										.replace(/\#riddle/g, pat => {
-											var QA = randRiddle();
-											riddles.push( QA.A );
-											return QA.Q;
-										})
-										.replace(/\#yesno/g, pat => {
-											var QA = randRiddle();
-											riddles.push( QA.A );
-											return QA.Q;
-										})
-										.replace(/\#rand/g, pat => {
-											riddles.push( rand(10) );
-											return "random integer between 0 and 9";		
-										})
-										.replace(/\#card/g, pat => {
-											return "cac card challenge TBD";
-										})
-										.replace(/\#bio/g, pat => {
-											return "bio challenge TBD";
-										});
-								
-								else
-									return msg;
-								*/
 							}
 
 							const
@@ -658,7 +631,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 								retries: Retries,
 								timeout: Timeout,
 								callback: checkEndpoint,
-								passphrase: prof.SecureCom || ""
+								//passphrase: prof.SecureCom || ""
 							}) );
 						}
 
@@ -675,18 +648,25 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 
 						try {
 							if ( prof = profs[0] ) {
-								if ( prof.Banned ) 
+								const 
+									{ Banned, SecureCom, Challenge } = prof;
+								
+								if ( Banned ) 
 									SIO.clients[client].emit("status", {
-										message: `${client} banned: ${prof.Banned}`
+										message: `${client} banned: ${Banned}`
 									});
 
 								else
-								if ( SecureCom = prof.SecureCom )	// allowed to use secure link
-									if ( prof.Challenge )	// must solve challenge to enter
+								if ( SecureCom )	// allowed to use secure link
+									if ( Challenge )	// must solve challenge to enter
 										getChallenge( prof, riddle => {
 											Log("challenge", riddle);
 											//socket.emit("challenge", riddle);
-											SIO.clients[client].emit("start", riddle);
+											getOnline( pubKeys => {
+												riddle.pubKeys = pubKeys;
+												riddle.passphrase = SecureCom;
+												SIO.clients[client].emit("start", riddle);
+											});
 										});
 
 									else
@@ -699,7 +679,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 											});
 										});
 
-								else		// barred from using the secure link
+								else		// cant use secure link
 									getOnline( pubKeys => {
 										SIO.clients[client].emit("start", {
 											message: `Welcome ${client}`,
@@ -783,7 +763,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 
 				const 
 					{ login, client } = req,
-					[account,password] = login.split("/");
+					[account,password,reset] = login.split("/");
 				
 				Log(">>>socket login", [client, account, password]);
 
@@ -811,7 +791,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 
 						default:
 							if ( password )
-								if ( client == account ) 
+								if ( reset ) 
 									Login( login, function resetPassword(err,prof) {
 										Log("socket resetPassword", err);
 										SIO.clients[client].emit("status", { 
