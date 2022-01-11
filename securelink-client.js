@@ -20,30 +20,26 @@ function secure_login() {
 	const
 		{ secureLink,bang,initSecureLink,iosocket } = SECLINK,
 		notice = document.getElementById("notice"),
-		lock = document.getElementById("lock"),
+		//lock = document.getElementById("lock"),
 		users = document.getElementById("users");
 
-	alert(notice.value);
+	//alert(notice.value);
 	
-	if ( notice.value.startsWith(bang) ) 
-		try {
-			const
-				{ pubKeys } = SECLINK,
-				login = notice.value.substr(bang.length);
-			
-			iosocket.emit("login", {
-				login: login,
-				client: ioClient
-			});
-		}
-	
-		catch (err) {
-			Log("login", err);
-			notice.value = "login failed";
-		}
-		
-	else
-		alert(`supply ${bang}login/password`);
+	try {
+		const
+			{ pubKeys } = SECLINK,
+			login = notice.value;
+
+		iosocket.emit("login", {
+			login: login,
+			client: ioClient
+		});
+	}
+
+	catch (err) {
+		Log("login", err);
+		notice.value = "login failed";
+	}
 
 }
 
@@ -61,17 +57,13 @@ function secure_save() {
 		{ secureLink,iosocket,bang } = SECLINK,
 		notice = document.getElementById("notice");
 	
-	if ( notice.value.startsWith(bang) )
-		Encode( notice.value.substr(bang.length), JSON.stringify(secureLink.history), msg => {
-			//alert("encoded=" + msg);
-			iosocket.emit("store", {
-				client: ioClient,
-				message: msg
-			});
+	Encode( notice.value, JSON.stringify(secureLink.history), msg => {
+		//alert("encoded=" + msg);
+		iosocket.emit("store", {
+			client: ioClient,
+			message: msg
 		});
-	
-	else
-		alert(`supply ${bang}encryption password`);
+	});
 	
 }
 
@@ -80,13 +72,9 @@ function secure_load() {
 		{ secureLink,iosocket,bang } = SECLINK,
 		notice = document.getElementById("notice");
 	
-	if ( notice.value.startsWith(bang) )
-		iosocket.emit("restore", {
-			client: ioClient
-		});
-	
-	else
-		alert(`supply ${bang}encryption password`);
+	iosocket.emit("restore", {
+		client: ioClient
+	});
 }
 
 function secure_delete() {
@@ -111,11 +99,6 @@ function secure_signal() {		//< send secure notice message to server
 		notice = document.getElementById("notice"),
 		upload = document.getElementById("upload");
 	
-	
-	if ( notice.value.startsWith(bang) ) {		// not for me - for a notice control
-		//alert( `Submit ${bang}option with appropriate control` );
-		return;	
-	}
 	
 	//Log(secureLink, iosocket, secure);
 
@@ -536,8 +519,9 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 					{ secureLink } = SECLINK,
 					{ history } = secureLink;
 				
-				if ( msg.startsWith("??") ) {
-					users.innerHTML = msg.substr(2);
+				//alert(msg);
+				if ( msg.startsWith("??") ) {	// challenge user
+					probe.innerHTML = msg.substr(2);
 					notice.size = 5;
 					notice.onchange = () => {
 						switch ( Ajax({
@@ -567,6 +551,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 							if ( tick.value > 600 ) {
 								clearInterval(Fuse);
 								//users.innerHTML = Object.keys(pubKeys).menu("Totem");
+								probe.innerHTML = "";
 								tick.style = "display:none";
 								tries.style = "display:none";
 								notice.size = 75;
@@ -713,6 +698,7 @@ Thank you for helping Totem protect its war fighters from bad data. <br><br>
 			scroll = document.getElementById("scroll"),
 			//lock = document.getElementById("lock"),
 			users = document.getElementById("users"),
+			probe = document.getElementById("probe"),
 			//rooms = document.getElementById("rooms"),
 			tick = document.getElementById("tick"),
 			tries = document.getElementById("tries");

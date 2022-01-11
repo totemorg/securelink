@@ -110,9 +110,9 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		addSession: "INSERT INTO openv.sessions SET ?",
 		getRiddle: "SELECT * FROM openv.riddles WHERE ? LIMIT 1",
 		
-		getAccount:	"SELECT *,aes_decrypt(unhex(Password),?) AS Password FROM openv.profiles WHERE Client=?", 
-		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
-		setPassword: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,Password),''), TokenID=null WHERE TokenID=?",
+		getAccount:	"SELECT *,aes_decrypt(unhex(Password),?) AS Password, hex(aes_encrypt(ID,?)) AS SessionID FROM openv.profiles WHERE Client=?", 
+		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,':',Password),'')", 
+		setPassword: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,':',Password),''), TokenID=null WHERE TokenID=?",
 		getToken: "SELECT Client FROM openv.profiles WHERE TokenID=? AND Expires>now()", 
 		addToken: "UPDATE openv.profiles SET TokenID=? WHERE Client=?",
 		getSession: "SELECT * FROM openv.profiles WHERE SessionID=? LIMIT 1",
@@ -134,8 +134,8 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 	challenge: {	//< for antibot client challenger 
 		extend: 0,
 		store: [],
-		riddler: "/riddle",
-		captcha: "/captcha",
+		checkEndpoint: "/riddle",
+		captchaEndpoint: "/captchaEndpoint",
 		map: []
 	},
 	
@@ -159,7 +159,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		userOnline: new Error( "account already online" ),
 		userExpired: new Error( "account expired" ),
 		resetFailed: new Error("password could not be reset at this time"),
-		//resetPass: new Error("login with new password"),
+		//resetOk: new Error("password reset"),
 		badPass: new Error("password not complex enough"),
 		badLogin: new Error("bad login"),
 		nonGuest: new Error("must be guest"),
@@ -179,7 +179,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 	
 	Login: (login,cb) => {
 		function passwordOk( pass ) {
-			return (pass.length >= 4);
+			return (pass.length >= passwordLen);
 		}
 
 		function accountOk( acct ) {
@@ -223,7 +223,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			const
 				{ guest } = SECLINK;
 			
-			if ( guest ) {
+			if ( guest ) {	// guest profile was defined
 				const
 					trust = isTrusted( account ),
 					prof = Copy({
@@ -251,15 +251,16 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		}
 
 		function genSession( sql, account, cb ) {
-			genCode(sessionLen, code => {
+			genCode(sessionLen, id => {
 				sql.query(
 					addSession, 
-					[code,account], err => {
+					[id,account], err => {
 
 						if ( err )	// has to be unqiue
 							genSession( sql, account, cb );
 
-						else cb( code, getExpires(expirePass) );
+						else 
+							cb( id, getExpires(expirePass) );
 				});
 			});
 		}
@@ -293,7 +294,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 
 		function getProfile( sql, account, cb ) {
 			//Log("get profile", account, host);
-			sql.query( getAccount, [encryptionPassword, account], (err,profs) => {		
+			sql.query( getAccount, [encryptionPassword, encryptionPassword, account], (err,profs) => {		
 
 				cb( err ? null : profs[0] || null );
 
@@ -315,24 +316,35 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);
 		
-		Log(cb.name, login, isGuest, host );
+		Log(">>>login", cb.name, [account,password]);
 		
 		sqlThread( sql => {
 			switch ( cb.name ) {
 				case "resetPassword":		// host requesting a password reset
-					if ( isGuest )			// guests cannot requests a reset
-						cb( errors.loginBlocked );
+					getProfile( sql, account, prof => {
+						if ( prof )	{	// have a valid user login
+							if ( passwordOk(password) )
+								sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
+									Log("setpass", account, password);
+									cb( err ? errors.resetFailed : null, prof );
+								});
 
-					else
-						genToken( sql, account, (token,expires) => {	// gen a token account			
-							cb( errors.userPending );
+							else
+								cb( errors.badPass );						
+								/*genToken( sql, account, (token,expires) => {	// gen a token account			
+									cb( errors.userPending );
 
-							notify({
-								to: account,
-								subject: "Totem password reset request",
-								text: `Please login using ${token}/NEWPASSWORD by ${expires}`
-							});
-						});
+									notify({
+										to: account,
+										subject: "Totem password reset request",
+										text: `Please login using ${token}/NEWPASSWORD by ${expires}`
+									});
+								});  */
+						}
+						
+						else
+							cb( errors.badLogin );
+					});
 
 					break;
 
@@ -381,23 +393,26 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 								cb( errors.userExpired );
 							*/
 
+							/*
 							else
 							if ( prof.TokenID ) 	// password reset pending
 								if ( passwordOk(password) )
 									sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
 										Log("setpass", account, password);
-										cb( err ? errors.resetFailed : errors.resetPass );
+										cb( err ? errors.resetFailed : errors.resetOk );
 									});
 
 								else
 									cb( errors.badPass );
-
+							*/
+							
 							else
 							if (password == prof.Password)		// validate login
-								genSession( sql, account, (sessionID,expires) => cb(null, Copy({
-									id: sessionID, 
+								cb(null, prof);
+								/*genSession( sql, account, (sessionID,expires) => cb(null, Copy({
+									sessionID: sessionID, 
 									expires: expires
-								}, prof ) ));
+								}, prof ) ));*/
 
 							else
 								cb( errors.badPass );
@@ -414,7 +429,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				default:
 					
 					getProfile( sql, account, prof => {
-						Log("getprof>>>>", prof);
+						//Log("getprof>>>>", prof);
 						if ( prof ) 
 							if ( prof.Banned ) 
 								cb(	new Error(prof.Banned) );	
@@ -502,12 +517,12 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		
 		function extendChallenger ( ) {		//< Create antibot challenges.
 			const 
-				{ store, extend, map, captcha } = challenge,
+				{ store, extend, map, captchaEndpoint } = challenge,
 				{ floor, random } = Math;
 
-			Log( `Adding ${extend} challenges from the ${captcha} imageset` );
+			Log( `Adding ${extend} challenges at ${captchaEndpoint}` );
 
-			if ( captcha )
+			if ( captchaEndpoint )
 				for (var n=0; n<extend; n++) {
 					var 
 						Q = {
@@ -518,9 +533,9 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						},
 
 						A = {
-							x: "".tag("img", {src: `${captcha}/${Q.x}/${map[Q.x][Q.n]}.jpg`}),
-							y: "".tag("img", {src: `${captcha}/${Q.y}/${map[Q.y][Q.n]}.jpg`}),
-							z: "".tag("img", {src: `${captcha}/${Q.z}/${map[Q.z][Q.n]}.jpg`})
+							x: "".tag("img", {src: `${captchaEndpoint}/${Q.x}/${map[Q.x][Q.n]}.jpg`}),
+							y: "".tag("img", {src: `${captchaEndpoint}/${Q.y}/${map[Q.y][Q.n]}.jpg`}),
+							z: "".tag("img", {src: `${captchaEndpoint}/${Q.z}/${map[Q.z][Q.n]}.jpg`})
 						};
 
 					store.push( {
@@ -587,15 +602,15 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 							@param {Array} rid List of riddles returned
 							@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
 							*/
-							function makeRiddles (msg,riddles,prof) { 
+							function makeChallenge () { 
 								const
 									{ floor, random } = Math,
 									rand = N => floor( random() * N ),
 									N = store.length,
 									randRiddle = () => store[rand(N)];
-
-								//Log("make", N, randRiddle, prof);
 								
+								return N ? randRiddle() : {Q:"1+0", A:"1"};
+								/*
 								if (N)	
 									return msg
 										//.parse$(prof)
@@ -622,27 +637,27 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 								
 								else
 									return msg;
+								*/
 							}
 
 							const
-								{ riddler, store } = challenge,
+								{ checkEndpoint, store } = challenge,
 								{ Message, Retries, Timeout } = profile,
-								riddles = [],
-								probe = makeRiddles( Message, riddles, profile );
+								{ Q,A } = makeChallenge( );
 
-							//Log("riddle", client, probe, riddles);
+							///Log(">>>genriddle", client, [Q,A]);
 
 							sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
-								Riddle: riddles.join(",").replace(/ /g,""),
+								Riddle: A,
 								Client: client,
 								Made: new Date(),
 								Attempts: 0,
 								maxAttempts: Retries
 							}, (err,info) => cb({		// send challenge to client
-								message: "??"+probe,
+								message: "??"+(Message||"What is: ")+Q,
 								retries: Retries,
 								timeout: Timeout,
-								callback: riddler,
+								callback: checkEndpoint,
 								passphrase: prof.SecureCom || ""
 							}) );
 						}
@@ -770,78 +785,101 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 					{ login, client } = req,
 					[account,password] = login.split("/");
 				
-				Log("login", [account,password]);
+				Log(">>>socket login", [client, account, password]);
 
-				switch ( account ) {
-					case "reset":
-						Login( password, function resetPassword(status) {
-							Log("socket resetPassword", status);
-							SIO.clients[password].emit("status", { 
-								message: status,
+				if ( account )
+					switch ( account ) {
+						/*
+						case "reset":
+							Login( password, function resetPassword(status) {
+								Log("socket resetPassword", status);
+								SIO.clients[password].emit("status", { 
+									message: status,
+								});
 							});
-						});
-						break;
-				
-					case "logout":
-					case "logoff":
-						sqlThread( sql => sql.query("UPDATE openv.profiles SET online=0 WHERE Client=?", client) );
-						SIO.emit("remove", {	// broadcast client's pubKey to everyone
-							client: client,
-						});
-
-						break;
-						
-					default:
-						if ( password )
-							Login( login, function newSession(err,prof) {
-								Log("socket newSession", err, prof);
-								try {
-									if ( err ) 
-										SIO.clients[client].emit("status", { // return error msg to client
-											message: err+"",
-										});
-
-									else {
-										//sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
-
-										SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
-											message: "Login completed",
-											cookie: `session=${prof.sessionID}; expires=${prof.expires.toUTCString()}; path=/`
-											//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
-										});
-
-										SIO.emit("remove", {	// remove old client then
-											client: client
-										});
-
-										SIO.emit("accept", {	// accept new client
-											client: account,
-											pubKey: prof.pubKey,
-										}); 
-									}
-								}
-
-								catch (err) {
-									Log(err, "Login propagation failed");
-								}
+							break;
+						*/
+							
+						case "logout":
+						case "logoff":
+							sqlThread( sql => sql.query("UPDATE openv.profiles SET online=0 WHERE Client=?", client) );
+							SIO.emit("remove", {	// broadcast client's pubKey to everyone
+								client: client,
 							});
-						
-						else
-							Login( login, function newAccount(err,prof) {
-								Log("socket newAccount", err, prof);
-								if ( err ) 
-									SIO.clients[client].emit("status", { // return error msg to client
-										message: err+"",
+
+							break;
+
+						default:
+							if ( password )
+								if ( client == account ) 
+									Login( login, function resetPassword(err,prof) {
+										Log("socket resetPassword", err);
+										SIO.clients[client].emit("status", { 
+											message: err ? "Password reset failed" : "Password reset",
+										});
+									});
+							
+								else
+									Login( login, function newSession(err,prof) {
+										Log("socket newSession", err, prof);
+										try {
+											if ( err ) 
+												SIO.clients[client].emit("status", { // return error msg to client
+													message: err+"",
+												});
+
+											else {
+												sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
+
+												SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
+													message: "Login completed",
+													cookie: `session=${prof.Client}; expires=${prof.Expires.toUTCString()}; path=/`
+													//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
+												});
+
+												SIO.emit("remove", {	// remove old client then
+													client: client
+												});
+
+												SIO.emit("accept", {	// accept new client
+													client: account,
+													pubKey: prof.pubKey,
+												}); 
+											}
+										}
+
+										catch (err) {
+											Log(err, "Login failed");
+										}
 									});
 
-								else
-									SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
-										message: "Check email",
-										cookie: `session=${prof.sessionID}; expires=${prof.expires.toUTCString()}; path=/`
-										//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
-									});								
-							});
-				}
+							else
+								Login( login, function newAccount(err,prof) {
+									Log("socket newAccount", err, prof);
+									try {
+										if ( err ) 
+											SIO.clients[client].emit("status", { // return error msg to client
+												message: err+"",
+											});
+
+										else
+											SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
+												message: "Account requested",
+												//cookie: `session=${prof.Client}; expires=${prof.Expires.toUTCString()}; path=/`
+												//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
+											});		
+									}
+									
+									catch (err) {
+										Log(err, "Login failed");
+									}
+								});
+					}
+				
+				else
+					SIO.clients[client].emit("status", { // return error msg to client
+						message: "invalid login credentials",
+					});					
 			});
 			
 			socket.on("relay", (req,socket) => {
