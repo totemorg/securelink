@@ -2,13 +2,18 @@
 
 /**
 Provides UIs for operating private (end-to-end encrypted) messaging link 
-between trusted clients.  The UIs herein are created in the /site.jade and support:
+between trusted clients.  
+
+This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
+
+The UIs herein are created in the /site.jade and support:
 
 	+ client login/out/reset operations
 	+ SecureLink and dbSync sockets (Kill, Sockets, Join)
 	+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 
 @module secureLink-client
+@author [ACMESDS](https://totemstan.github.io)
 
 @requires socketio
 @requires openpgp

@@ -1,9 +1,32 @@
 # SecureLink
 
-**SecureLink** is built on [TOTEM's SocketIO](https://github.com/totemstan/socketio) and provides a secure link between TOTEM clients 
-through the use of PGP end-to-end encryption.
+**SecureLink** is built on [SocketIO](https://github.com/totemstan/socketio) and provides a secure link between clients 
+through the use of PGP end-to-end encryption.  **SecureLink** also provides antibot technology to challenge clients, 
+and a secure login mechanisim.  **SecureLink** establishes the following SocketIO protocol
 
-**SecureLink** also provides antibot technology to challenge clients, and a secure login mechanisim.
+	Function	Client					Channel 			Server
+	==================================================================
+	join			----------------- connect ---------------->
+	request			----------------- join ------------------->
+					<---- status || challenge || start	-------
+	
+	start			----------------- announce --------------->
+	session			<---------------- accept* -----------------
+	
+	save			----------------- store ------------------>
+	history			<---------------- status ------------------
+	
+	load			----------------- restore ---------------->
+	history			<---------------- status ------------------
+	
+	login			----------------- login ------------------>
+	request			<----- status, remove*, accept* -----------
+					
+	relay			----------------- relay ------------------>
+	message			<---------------- relay** -----------------
+	
+	* sends to all clients
+	** sends to all clients except the requesting client
 	
 ## Installation
 
@@ -59,32 +82,6 @@ Feel free to
 [SBU](https://totem.nga.mil/milestones.view)
 ).
 
-## Protocol
-
-	Function	Client					Channel 			Server
-	==================================================================
-	join			----------------- connect ---------------->
-	request			----------------- join ------------------->
-					<---- status || challenge || start	-------
-	
-	start			----------------- announce --------------->
-	session			<---------------- accept* -----------------
-	
-	save			----------------- store ------------------>
-	history			<---------------- status ------------------
-	
-	load			----------------- restore ---------------->
-	history			<---------------- status ------------------
-	
-	login			----------------- login ------------------>
-	request			<----- status, remove*, accept* -----------
-					
-	relay			----------------- relay ------------------>
-	message			<---------------- relay** -----------------
-	
-	* sends to all clients
-	** sends to all clients except the requesting client
-	
 ## License
 
 [MIT](LICENSE)

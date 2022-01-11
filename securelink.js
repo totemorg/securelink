@@ -5,9 +5,10 @@ Provides a secure link between totem clients and the totem server.
 Provides account login/out/reset sessions and a private (end-to-end
 encrypted) message link between trusted clients. 
 
-This module in accordance with [jsdoc]{@link https://jsdoc.app/}.
+This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
 @module SECLINK
+@author [ACMESDS](https://totemstan.github.io)
 
 @requires socketio
 @requires socket.io
@@ -567,7 +568,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			delete guest.Password;
 		}
 		
-		SIO.on("connect", socket => {  	// define side channel listeners when client calls io()
+		SIO.on("connect", socket => {  	// define socket listeners when client calls the socketio-client io()
 			Log("listening to sockets");
 
 			socket.on("join", (req,socket) => {	// Traps client connect when client emits "join" request

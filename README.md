@@ -1,9 +1,32 @@
 # SecureLink
 
-**SecureLink** is built on [TOTEM's SocketIO](https://github.com/totemstan/socketio) and provides a secure link between TOTEM clients 
-through the use of PGP end-to-end encryption.
+**SecureLink** is built on [SocketIO](https://github.com/totemstan/socketio) and provides a secure link between clients 
+through the use of PGP end-to-end encryption.  **SecureLink** also provides antibot technology to challenge clients, 
+and a secure login mechanisim.  **SecureLink** establishes the following SocketIO protocol
 
-**SecureLink** also provides antibot technology to challenge clients, and a secure login mechanisim.
+	Function	Client					Channel 			Server
+	==================================================================
+	join			----------------- connect ---------------->
+	request			----------------- join ------------------->
+					<---- status || challenge || start	-------
+	
+	start			----------------- announce --------------->
+	session			<---------------- accept* -----------------
+	
+	save			----------------- store ------------------>
+	history			<---------------- status ------------------
+	
+	load			----------------- restore ---------------->
+	history			<---------------- status ------------------
+	
+	login			----------------- login ------------------>
+	request			<----- status, remove*, accept* -----------
+					
+	relay			----------------- relay ------------------>
+	message			<---------------- relay** -----------------
+	
+	* sends to all clients
+	** sends to all clients except the requesting client
 	
 ## Installation
 
@@ -34,11 +57,13 @@ Dependent modules:
 <dd><p>Provides a secure link between totem clients and the totem server.
 Provides account login/out/reset sessions and a private (end-to-end
 encrypted) message link between trusted clients. </p>
-<p>This module in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
+<p>This module documented in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
 </dd>
 <dt><a href="#module_secureLink-client">secureLink-client</a></dt>
 <dd><p>Provides UIs for operating private (end-to-end encrypted) messaging link 
-between trusted clients.  The UIs herein are created in the /site.jade and support:</p>
+between trusted clients.  </p>
+<p>This module documented in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
+<p>The UIs herein are created in the /site.jade and support:</p>
 <pre><code>+ client login/out/reset operations
 + SecureLink and dbSync sockets (Kill, Sockets, Join)
 + data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
@@ -53,9 +78,10 @@ Provides a secure link between totem clients and the totem server.
 Provides account login/out/reset sessions and a private (end-to-end
 encrypted) message link between trusted clients. 
 
-This module in accordance with [jsdoc](https://jsdoc.app/).
+This module documented in accordance with [jsdoc](https://jsdoc.app/).
 
 **Requires**: <code>module:socketio</code>, <code>module:socket.io</code>, <code>module:crypto</code>  
+**Author**: [ACMESDS](https://totemstan.github.io)  
 
 * [SECLINK](#module_SECLINK)
     * [.host](#module_SECLINK.host)
@@ -109,13 +135,18 @@ Establish socketio channels for the SecureIntercom link (at store,restore,login,
 
 ## secureLink-client
 Provides UIs for operating private (end-to-end encrypted) messaging link 
-between trusted clients.  The UIs herein are created in the /site.jade and support:
+between trusted clients.  
+
+This module documented in accordance with [jsdoc](https://jsdoc.app/).
+
+The UIs herein are created in the /site.jade and support:
 
 	+ client login/out/reset operations
 	+ SecureLink and dbSync sockets (Kill, Sockets, Join)
 	+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 
 **Requires**: <code>module:socketio</code>, <code>module:openpgp</code>, <code>module:uibase</code>  
+**Author**: [ACMESDS](https://totemstan.github.io)  
 </details>
 
 ## Contacting, Contributing, Following
@@ -147,32 +178,6 @@ Feel free to
 [SBU](https://totem.nga.mil/milestones.view)
 ).
 
-## Protocol
-
-	Function	Client					Channel 			Server
-	==================================================================
-	join			----------------- connect ---------------->
-	request			----------------- join ------------------->
-					<---- status || challenge || start	-------
-	
-	start			----------------- announce --------------->
-	session			<---------------- accept* -----------------
-	
-	save			----------------- store ------------------>
-	history			<---------------- status ------------------
-	
-	load			----------------- restore ---------------->
-	history			<---------------- status ------------------
-	
-	login			----------------- login ------------------>
-	request			<----- status, remove*, accept* -----------
-					
-	relay			----------------- relay ------------------>
-	message			<---------------- relay** -----------------
-	
-	* sends to all clients
-	** sends to all clients except the requesting client
-	
 ## License
 
 [MIT](LICENSE)
