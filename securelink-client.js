@@ -12,7 +12,7 @@ The UIs herein are created in the /site.jade and support:
 	+ SecureLink and dbSync sockets (Kill, Sockets, Join)
 	+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 
-@module secureLink-client
+@module SECLINK-CLIENT
 @author [ACMESDS](https://totemstan.github.io)
 
 @requires socketio

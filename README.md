@@ -59,7 +59,7 @@ Provides account login/out/reset sessions and a private (end-to-end
 encrypted) message link between trusted clients. </p>
 <p>This module documented in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
 </dd>
-<dt><a href="#module_secureLink-client">secureLink-client</a></dt>
+<dt><a href="#module_SECLINK-CLIENT">SECLINK-CLIENT</a></dt>
 <dd><p>Provides UIs for operating private (end-to-end encrypted) messaging link 
 between trusted clients.  </p>
 <p>This module documented in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
@@ -131,9 +131,9 @@ Establish socketio channels for the SecureIntercom link (at store,restore,login,
 	sync,join,exit,content) and the insecure dbSync link (at select,update,insert,delete).
 
 **Kind**: static method of [<code>SECLINK</code>](#module_SECLINK)  
-<a name="module_secureLink-client"></a>
+<a name="module_SECLINK-CLIENT"></a>
 
-## secureLink-client
+## SECLINK-CLIENT
 Provides UIs for operating private (end-to-end encrypted) messaging link 
 between trusted clients.  
 
