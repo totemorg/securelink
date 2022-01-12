@@ -161,7 +161,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 	/**
 	Domain name of host for attributing domain-owned accounts.
 	*/
-	host: END.LINK_HOST || "secureHost",
+	host: ENV.LINK_HOST || "secureHost",
 			
 	challenge: {	//< for antibot client challenger 
 		extend: 0,
