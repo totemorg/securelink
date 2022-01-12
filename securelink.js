@@ -11,6 +11,39 @@ This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires socketio
 @requires socket.io
 @requires crypto
+
+@example
+
+On the server:
+
+	const
+		SECLINK = require("securelink");
+
+	SECLINK.config({
+		server: server,
+		sqlThread: sqlThread,
+		guest: {....}
+	});
+								
+	const
+		{ sio } = SECLINK;
+	
+	sio.emit( "update", { // send update request
+	});	
+						
+
+On the client:
+	
+	// <script src="securelink-client.js"></script>
+	
+	Sockets({	// establish sockets
+		update: req => {	// intercept update request
+			console.log("update", req);
+		}, 
+
+		// other sockets as needed ...
+	});
+	
 */
 
 const		// globals
@@ -279,6 +312,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			});
 		}  */
 
+		/*
 		function genToken( sql, account, cb ) {
 			genCode(tokenLen, token => {
 				sql.query( addToken, [ token, account], err => {
@@ -289,7 +323,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						cb( token, getExpires(expirePass) );
 				});
 			});
-		}
+		}*/
 
 		function getProfile( sql, account, cb ) {
 			//Log("get profile", account, host);

@@ -79,6 +79,38 @@ This module documented in accordance with [jsdoc](https://jsdoc.app/).
 
 **Requires**: <code>module:socketio</code>, <code>module:socket.io</code>, <code>module:crypto</code>  
 **Author**: [ACMESDS](https://totemstan.github.io)  
+**Example**  
+```js
+On the server:
+
+	const
+		SECLINK = require("securelink");
+
+	SECLINK.config({
+		server: server,
+		sqlThread: sqlThread,
+		guest: {....}
+	});
+								
+	const
+		{ sio } = SECLINK;
+	
+	sio.emit( "update", { // send update request
+	});	
+						
+
+On the client:
+	
+	// <script src="securelink-client.js"></script>
+	
+	Sockets({	// establish sockets
+		update: req => {	// intercept update request
+			console.log("update", req);
+		}, 
+
+		// other sockets as needed ...
+	});
+```
 
 * [SECLINK](#module_SECLINK)
     * [.host](#module_SECLINK.host)
