@@ -312,8 +312,7 @@ const {
 		
 	bootoff: 
 `
-Consider logging in to avoid the bot catcher. <br>
-Thank you for helping Totem protect its war fighters from bad data. <br><br>
+Thank you for helping Totem protect its war fighters from bad data.
 `,
 
 	bang: "!!",

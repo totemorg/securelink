@@ -36,15 +36,16 @@ Clone **SecureLink** from one of its repos:
 	git clone https://sc.appdev.proj.coe/acmesds/securelink
 	git clone https://gitlab.west.nga.ic.gov/acmesds/securelink
 
-and define its env vars:
-
-	PASS_PASS = passphrase to encrypt user passwords ["nopass"]
-
-Dependent modules:
+and its dependent modules:
 
 + **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
 + **SOCKETIO** [WWW](https://github.com/totemstan/socketio) [COE](https://sc.appdev.proj.coe/acmesds/socketio) [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
 
+## Env vars
+									  
+	LINK_PASS = passphrase to encrypt user passwords ["securePass"]
+	LINK_HOST = name of secure link host ["secureHost"]
+									  
 ## Program Reference
 <details>
 <summary>
@@ -54,9 +55,7 @@ Dependent modules:
 
 <dl>
 <dt><a href="#module_SECLINK">SECLINK</a></dt>
-<dd><p>Provides a secure link between totem clients and the totem server.
-Provides account login/out/reset sessions and a private (end-to-end
-encrypted) message link between trusted clients. </p>
+<dd><p>Provides a private (end-to-end encrypted) message link between trusted clients and secure logins. </p>
 <p>This module documented in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
 </dd>
 <dt><a href="#module_SECLINK-CLIENT">SECLINK-CLIENT</a></dt>
@@ -74,9 +73,7 @@ between trusted clients.  </p>
 <a name="module_SECLINK"></a>
 
 ## SECLINK
-Provides a secure link between totem clients and the totem server.
-Provides account login/out/reset sessions and a private (end-to-end
-encrypted) message link between trusted clients. 
+Provides a private (end-to-end encrypted) message link between trusted clients and secure logins. 
 
 This module documented in accordance with [jsdoc](https://jsdoc.app/).
 
@@ -87,7 +84,7 @@ This module documented in accordance with [jsdoc](https://jsdoc.app/).
     * [.host](#module_SECLINK.host)
     * [.isTrusted()](#module_SECLINK.isTrusted)
     * [.Login(login, cb)](#module_SECLINK.Login)
-    * [.testClient()](#module_SECLINK.testClient)
+    * [.testClient(client, guess, res)](#module_SECLINK.testClient)
     * [.config()](#module_SECLINK.config)
 
 <a name="module_SECLINK.host"></a>
@@ -106,7 +103,7 @@ Test if an account is "trusted" to use the secure com channel.
 
 ### SECLINK.Login(login, cb)
 Start a secure link and return the user profile corresponding for the supplied 
-	account/password login.  The provided callback  X(err,profile) where X =  
+	account/password login.  The provided callback LOGIN(err,profile) where LOGIN =  
 	resetPassword || newAccount || newSession || guestSession determines the login session
 	type being requested.
 
@@ -120,10 +117,17 @@ Start a secure link and return the user profile corresponding for the supplied
 
 <a name="module_SECLINK.testClient"></a>
 
-### SECLINK.testClient()
+### SECLINK.testClient(client, guess, res)
 Test response of client during a session challenge.
 
 **Kind**: static method of [<code>SECLINK</code>](#module_SECLINK)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>String</code> | name of client being challenged |
+| guess | <code>String</code> | guess provided by client |
+| res | <code>function</code> | response callback( "pass" || "fail" || "retry" ) |
+
 <a name="module_SECLINK.config"></a>
 
 ### SECLINK.config()

@@ -1,9 +1,7 @@
 // UNCLASSIFIED
 
 /**
-Provides a secure link between totem clients and the totem server.
-Provides account login/out/reset sessions and a private (end-to-end
-encrypted) message link between trusted clients. 
+Provides a private (end-to-end encrypted) message link between trusted clients and secure logins. 
 
 This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
@@ -130,7 +128,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 	/**
 	Domain name of host for attributing domain-owned accounts.
 	*/
-	host: "nohost",
+	host: END.LINK_HOST || "secureHost",
 			
 	challenge: {	//< for antibot client challenger 
 		extend: 0,
@@ -169,7 +167,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 	
 	/**
 	Start a secure link and return the user profile corresponding for the supplied 
-	account/password login.  The provided callback  X(err,profile) where X =  
+	account/password login.  The provided callback LOGIN(err,profile) where LOGIN =  
 	resetPassword || newAccount || newSession || guestSession determines the login session
 	type being requested.
 
@@ -312,7 +310,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			{ isTrusted, notify, sqlThread, host,
 			expireTemp, expirePerm, expirePass } = SECLINK,
 			{ getAccount, addAccount, addToken, getToken, getSession, addSession, endSession, setPassword } = sqls,
-			encryptionPassword = ENV.PASS_PASS || "nopass",
+			encryptionPassword = ENV.LINK_PASS || "securePass",
 			allowSecureConnect = true,
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);
@@ -467,6 +465,9 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 	
 	/**
 	Test response of client during a session challenge.
+	@param {String} client name of client being challenged
+	@param {String} guess guess provided by client
+	@param {Function} res response callback( "pass" || "fail" || "retry" )
 	*/
 	testClient: (client,guess,res) => {
 			
@@ -476,21 +477,21 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		
 		if ( getRiddle ) 
 			sqlThread( sql => {
-				sql.query(getRiddle, {Client:client}, (err,rids) => {
+				sql.query(getRiddle, {Client:client}, (err,recs) => {
 
-					if ( rid = rids[0] ) {
-						var 
-							ID = {Client:rid.ID},
+					if ( rec = recs[0] ) {
+						const 
+							ID = {Client:rec.ID},
 							Guess = (guess+"").replace(/ /g,"");
 
-						Log("riddle",rid);
+						Log("riddle",rec);
 
-						if (rid.Riddle == Guess) {
+						if (rec.Riddle == Guess) {
 							res( "pass" );
 							sql.query("DELETE FROM openv.riddles WHERE ?",ID);
 						}
 						else
-						if (rid.Attempts > rid.maxAttempts) {
+						if (rec.Attempts > rec.maxAttempts) {
 							res( "fail" );
 							sql.query("DELETE FROM openv.riddles WHERE ?",ID);
 						}
