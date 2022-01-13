@@ -54,6 +54,7 @@ function secure_scroll() {
 		scroll = document.getElementById("scroll"),
 		notice = document.getElementById("notice");
 	
+	if (scroll.value >= 0)
 	notice.value = secureLink.history[scroll.value];
 }
 
@@ -141,12 +142,12 @@ function secure_signal() {		//< send secure notice message to server
 	function send(msg,to) {
 		Log("signal", msg, ioClient, "=>", to );
 
-		history.push({
+		history.push( msg + "=>" + to /*{
 			msg: msg,
 			user: to,
 			dir: "to",
 			on: (new Date()).toUTCString()
-		});  
+		} */);  
 
 		if ( pubKey = pubKeys[to] )		// use secureLink when target in ecosystem
 			Encrypt( passphrase, msg, pubKey, priKey, msg => {
@@ -200,7 +201,7 @@ function users_select(key) {
 		{ history } = secureLink,
 		notice = document.getElementById("notice");
 	
-	notice.value = history.select({user: key}).map( hist => `${hist.on} ${hist.dir} ${hist.user} ${hist.msg}` ).join("\n");
+	notice.value = history[history.length]; //history.select({user: key}).map( hist => `${hist.on} ${hist.dir} ${hist.user} ${hist.msg}` ).join("\n");
 }
 			
 //============== Extract functions to the browser's global namespace
@@ -470,7 +471,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 						passphrase: passphrase,
 						priKey: priKey,
 						clients: 1,
-						history: [],
+						history: [ "message => to,..." ],
 						lookups: {
 							$me: ioClient,
 							$strike: `fire the death ray now Mr. president=>$president=>$commanders`,
@@ -549,6 +550,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 								tries.style = "display:none";
 								notice.size = 75;
 								notice.value = `Welcome ${ioClient}`;
+								history.push( notice.value );
 								notice.onchange= secure_signal; // "secure_signal()";
 							}
 
@@ -569,12 +571,12 @@ Thank you for helping Totem protect its war fighters from bad data.
 
 				else {
 					notice.value = msg + "<=" + req.from;
-					history.push({
+					history.push( msg + "<=" + req.from /*{
 						msg: msg,
 						user: req.from,
 						dir: "from",
 						on: (new Date()).toUTCString()
-					}); 
+					} */); 
 				}
 			}
 
