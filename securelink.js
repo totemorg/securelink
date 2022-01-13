@@ -179,7 +179,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 	Test if an account is "trusted" to use the secure com channel.
 	*/
 	
-	isTrusted: account => true,
+	isTrusted: account => account.endsWith("@"+SECLINK.host),
 
 	expireTemp: [5,10],
 	expirePerm: [365,0],
@@ -255,7 +255,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			const
 				{ guest } = SECLINK;
 			
-			if ( guest ) {	// guest profile was defined
+			if ( guest ) {	// guest profiles allowed
 				const
 					trust = isTrusted( account ),
 					prof = Copy({
