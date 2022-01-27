@@ -516,7 +516,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 				
 				if ( msg.startsWith("??") ) {	// challenge user
 					probe.innerHTML = msg.substr(2);
-					notice.size = 5;
+					notice.size = 60;
 					notice.onchange = () => {
 						switch ( Ajax({
 										guess: notice.value,
@@ -548,7 +548,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 								probe.innerHTML = "";
 								tick.style = "display:none";
 								tries.style = "display:none";
-								notice.size = 75;
+								notice.size = 50;
 								notice.value = `Welcome ${ioClient}`;
 								history.push( notice.value );
 								notice.onchange= secure_signal; // "secure_signal()";
