@@ -955,6 +955,7 @@ switch ( process.argv[2] ) { // unit tests
 	
 	case "L$":
 		const
+			VM = require("vm"),
 			CTX = VM.createContext(SECLINK);
 
 		require("repl").start({
