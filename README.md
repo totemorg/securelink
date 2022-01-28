@@ -77,7 +77,7 @@ Provides a private (end-to-end encrypted) message link between trusted clients a
 
 This module documented in accordance with [jsdoc](https://jsdoc.app/).
 
-**Requires**: <code>module:socketio</code>, <code>module:socket.io</code>, <code>module:crypto</code>  
+**Requires**: <code>module:socketio</code>, <code>module:socket.io</code>, <code>module:crypto</code>, <code>module:enums</code>  
 **Author**: [ACMESDS](https://totemstan.github.io)  
 **Example**  
 ```js

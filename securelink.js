@@ -11,6 +11,7 @@ This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires socketio
 @requires socket.io
 @requires crypto
+@requires enums
 
 @example
 
@@ -57,80 +58,13 @@ const
 	//HUBIO = new (SIOHUB);
 
 	// For working socketio
-	SOCKETIO = require("socketio");
+	SOCKETIO = require("socketio"),
+	{ Copy, Each } = require("../enums");
 
-const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
+const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	
-	Log: (...args) => console.log(">>>secLink",args),
-	
-	Each: ( A, cb ) => {
-		Object.keys(A).forEach( key => cb( key, A[key] ) );
-	},
-	
-	Copy: (src,tar,deep) => {
-
-		for (var key in src) {
-			var val = src[key];
-
-			if (deep) 
-				switch (key) {
-					case Array: 
-						val.Extend(Array);
-						break;
-
-					case "String": 
-						val.Extend(String);
-						break;
-
-					case "Date": 
-						val.Extend(Date);
-						break;
-
-					case "Object": 	
-						val.Extend(Object);
-						break;
-
-					/*case "Function": 
-						this.callStack.push( val ); 
-						break; */
-
-					default:
-
-						var 
-							keys = key.split(deep), 
-							Tar = tar,
-							idx = keys[0],
-							N = keys.length-1;
-
-						for ( var n=0; n < N ;  idx = keys[++n]	) { // index to the element to set/append
-							if ( idx in Tar ) {
-								if ( !Tar[idx] ) Tar[idx] = new Object();
-								Tar = Tar[idx];
-							}
-
-							else
-								Tar = Tar[idx] = new Object(); //new Array();
-						}
-
-						if (idx)  // not null so update target
-							Tar[idx] = val;
-
-						else  // null so append to target
-						if (val.constructor == Object) 
-							for (var n in val) 
-								Tar[n] = val[n];
-
-						else
-							Tar.push( val );
-				}
-
-			else
-				tar[key] = val;
-		}
-
-		return tar;
-	},
-	
+	Trace: (msg, ...args) => `sio>>>${msg}`.trace( args ),
+		
 	sqlThread: () => { throw new Error("sqlThread not configured"); },
 	
 	server: null,	// established on config
@@ -271,13 +205,13 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				 	encryptionPassword, 
 				 	allowSecureConnect 
 				], (err,info) => {
-					if (err) Log("add acct>>>>>", err, info, prof);
+					if (err) Trace("add acct", err, info, prof);
 					cb( err ? null : prof );
 				});
 			}
 			
 			else {
-				Log("Guest accounts disabled");
+				Trace("Guest accounts disabled");
 				cb( null );
 			}
 		}
@@ -300,9 +234,9 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		/*
 		function genGuest( sql, account, expires, cb ) {
 			genCode(accountLen, code => {
-				//Log("gen guest", code);
+				//Trace("gen guest", code);
 				newAccount( sql, `guest${code}@${host}`, password, expires, (err,prof) => {
-					Log("made account", prof);
+					Trace("made account", prof);
 					if ( !err )
 						cb( prof );
 
@@ -326,7 +260,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		}*/
 
 		function getProfile( sql, account, cb ) {
-			//Log("get profile", account, host);
+			//Trace("get profile", account, host);
 			sql.query( getAccount, [encryptionPassword, encryptionPassword, account], (err,profs) => {		
 
 				cb( err ? null : profs[0] || null );
@@ -349,7 +283,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);
 		
-		Log(">>>login", cb.name, [account,password]);
+		Trace("login", cb.name, `${account}/${password}`);
 		
 		sqlThread( sql => {
 			switch ( cb.name ) {
@@ -358,7 +292,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						if ( prof )	{	// have a valid user login
 							if ( passwordOk(password) )
 								sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
-									Log("setpass", account, password);
+									Trace("setpass", account, password);
 									cb( err ? errors.resetFailed : null, prof );
 								});
 
@@ -384,7 +318,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				case "newAccount": 			// host requesting a new account
 					if ( true )			// only guests can request a new account
 						genPassword( password => {
-							//Log("gen", account, password);
+							//Trace("gen", account, password);
 							newAccount( sql, account, password, prof => {
 								if ( prof ) {
 									cb( prof );
@@ -411,7 +345,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 					
 					getProfile( sql, account, prof => {
 						if ( prof )	{	// have a valid user login
-							//Log(password, prof);
+							//Trace(password, prof);
 							if ( prof.Banned ) 				// account banned for some reason
 								cb(	new Error(prof.Banned) );
 
@@ -432,7 +366,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 							if ( prof.TokenID ) 	// password reset pending
 								if ( passwordOk(password) )
 									sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
-										Log("setpass", account, password);
+										Trace("setpass", account, password);
 										cb( err ? errors.resetFailed : errors.resetOk );
 									});
 
@@ -463,7 +397,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				default:
 					
 					getProfile( sql, account, prof => {
-						//Log("getprof>>>>", prof);
+						//Trace("getprof", prof);
 						if ( prof ) 
 							if ( prof.Banned ) 
 								cb(	new Error(prof.Banned) );	
@@ -473,7 +407,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						
 						else
 							newAccount( sql, account, "", prof => {
-								Log("newacct>>>>", prof);
+								Trace("newacct", prof);
 								if ( prof ) 
 									cb( null, prof );
 								
@@ -518,7 +452,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 							ID = {Client:rec.ID},
 							Guess = (guess+"").replace(/ /g,"");
 
-						Log("riddle",rec);
+						Trace("riddle",rec);
 
 						if (rec.Riddle == Guess) {
 							res( "pass" );
@@ -557,7 +491,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				{ store, extend, map, captchaEndpoint } = challenge,
 				{ floor, random } = Math;
 
-			Log( `Adding ${extend} challenges at ${captchaEndpoint}` );
+			Trace( `Adding ${extend} challenges at ${captchaEndpoint}` );
 
 			if ( captchaEndpoint )
 				for (var n=0; n<extend; n++) {
@@ -581,7 +515,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 					} );
 				}
 
-			//Log(store);
+			//Trace(store);
 		}
 		
 		const 
@@ -595,7 +529,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 					//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 				}),  */
 
-		Log("config socketio");
+		Trace("config socketio");
 
 		if (guest) {
 			delete guest.ID;
@@ -604,10 +538,10 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		}
 		
 		SIO.on("connect", socket => {  	// define socket listeners when client calls the socketio-client io()
-			Log("listening to sockets");
+			Trace("listening to sockets");
 
 			socket.on("join", (req,socket) => {	// Traps client connect when client emits "join" request
-				Log("socket admit client", req);
+				Trace("socket admit client*", req);
 				const
 					{client,message,insecureok} = req;
 
@@ -654,7 +588,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 								{ Message, Retries, Timeout } = profile,
 								{ Q,A } = makeChallenge( );
 
-							///Log(">>>genriddle", client, [Q,A]);
+							///Trace("genriddle", client, [Q,A]);
 
 							sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
 								Riddle: A,
@@ -680,7 +614,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 							.on("end", () => cb( keys ) );
 						}
 						
-						//Log(err,profs);
+						//Trace(err,profs);
 
 						try {
 							if ( prof = profs[0] ) {
@@ -696,7 +630,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 								if ( SecureCom )	// allowed to use secure link
 									if ( Challenge )	// must solve challenge to enter
 										getChallenge( prof, riddle => {
-											Log("challenge", riddle);
+											Trace("challenge", riddle);
 											//socket.emit("challenge", riddle);
 											getOnline( pubKeys => {
 												riddle.pubKeys = pubKeys;
@@ -733,7 +667,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						}
 						
 						catch (err) {
-							Log(err,"Join failed");
+							Trace(err,"Join failed");
 						}
 					});
 				}); 
@@ -743,7 +677,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				const
 					{client,ip,location,message} = req;
 
-				Log("socket store client history", req);
+				Trace("socket store client history*", req);
 
 				sqlThread( sql => {
 					sql.query(
@@ -758,7 +692,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 							}
 							
 							catch (err) {
-								Log(err,"History load failed");
+								Trace(err,"History load failed");
 							}
 					});
 				});
@@ -768,13 +702,13 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				const
 					{client,ip,location,message} = req;
 
-				Log("socket restore client history", req);
+				Trace("socket restore client history*", req);
 				sqlThread( sql => {
 					sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
 					[client],
 					(err,recs) => {
 
-						//Log("restore",err,recs);
+						//Trace("restore",err,recs);
 
 						try {
 							if ( rec = err ? null : recs[0] )
@@ -789,7 +723,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 						}
 						
 						catch (err) {
-							Log(err,"History restore failed");
+							Trace(err,"History restore failed");
 						}
 					});
 				});
@@ -801,14 +735,14 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 					{ login, client } = req,
 					[account,password,reset] = login.split("/");
 				
-				Log(">>>socket login", [client, account, password]);
+				Trace("socket login", `${client}/${account}/${password}` );
 
 				if ( account )
 					switch ( account ) {
 						/*
 						case "reset":
 							Login( password, function resetPassword(status) {
-								Log("socket resetPassword", status);
+								Trace("socket resetPassword", status);
 								SIO.clients[password].emit("status", { 
 									message: status,
 								});
@@ -829,7 +763,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 							if ( password )
 								if ( reset ) 
 									Login( login, function resetPassword(err,prof) {
-										Log("socket resetPassword", err);
+										Trace("socket resetPassword", err);
 										SIO.clients[client].emit("status", { 
 											message: err ? "Password reset failed" : "Password reset",
 										});
@@ -837,7 +771,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 							
 								else
 									Login( login, function newSession(err,prof) {
-										Log("socket newSession", err, prof);
+										Trace("socket newSession", err, prof);
 										try {
 											if ( err ) 
 												SIO.clients[client].emit("status", { // return error msg to client
@@ -865,13 +799,13 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 										}
 
 										catch (err) {
-											Log(err, "Login failed");
+											Trace(err, "Login failed");
 										}
 									});
 
 							else
 								Login( login, function newAccount(err,prof) {
-									Log("socket newAccount", err, prof);
+									Trace("socket newAccount", err, prof);
 									try {
 										if ( err ) 
 											SIO.clients[client].emit("status", { // return error msg to client
@@ -887,7 +821,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 									}
 									
 									catch (err) {
-										Log(err, "Login failed");
+										Trace(err, "Login failed");
 									}
 								});
 					}
@@ -902,7 +836,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 				const
 					{ from,message,to,insecureok,route } = req;
 
-				Log("socket relay", req);
+				Trace("socket relay", req);
 
 				if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
 					SIO.emitOthers(from, "relay", {	// broadcast message to everyone
@@ -926,7 +860,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 									{N,T} = err ? {N:0,T:1} : recs[0],
 									lambda = N/T;
 
-								//Log("inspection", score, lambda, hops);
+								//Trace("inspection", score, lambda, hops);
 
 								if ( insecureok ) // if tracking permitted by client then ...
 									sql.query(
@@ -962,7 +896,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			});
 
 			socket.on("announce", req => {
-				Log("socket announce client", req);
+				Trace("socket announce client*", req);
 
 				const
 					{ client,pubKey } = req;
@@ -975,7 +909,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 					if (0)
 					sql.query( "SELECT Client,pubKey FROM openv.profiles WHERE Client!=? AND length(pubKey)", [client] )
 					.on("result", rec => {
-						Log("##### send sync to me");
+						Trace("send sync to me");
 						socket.emit("sync", {	// broadcast other pubKeys to this client
 							message: rec.pubKey,
 							from: rec.Client,
@@ -991,7 +925,7 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 			});  
 			
 			socket.on("kill", (req,socket) => {
-				Log("socket kill session", req);
+				Trace("socket kill session*", req);
 				
 				socket.end();
 			});
@@ -1001,17 +935,37 @@ const { sqls, Each, Copy, Log, Login, errors } = SECLINK = module.exports = {
 		/*
 		// for debugging
 		SIO.on("connect_error", err => {
-			Log(err);
+			Trace(err);
 		});
 
 		SIO.on("disconnection", socket => {
-			Log(">>DISCONNECT CLIENT");
+			Trace(">>DISCONNECT CLIENT");
 		});	
 		*/
 		
 		extendChallenger ( );
 	},
 	
+}
+
+switch ( process.argv[2] ) { // unit tests
+	case "?":
+		Trace("unit test with 'node securelink.js [L$ || L0 || L1 ... ]'");
+		break;
+	
+	case "L$":
+		const
+			CTX = VM.createContext(SECLINK);
+
+		require("repl").start({
+			eval: (cmd, ctx, filename, cb) => {
+				if ( cmd ) 
+					cb( null, VM.runInContext(cmd, CTX));
+			}, 
+			prompt: "$> ", 
+			useGlobal: true
+		});
+
 }
 
 // UNCLASSIFIED

@@ -516,7 +516,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 				
 				if ( msg.startsWith("??") ) {	// challenge user
 					probe.innerHTML = msg.substr(2);
-					notice.size = 60;
+					notice.size = 50;
 					notice.onchange = () => {
 						switch ( Ajax({
 										guess: notice.value,
