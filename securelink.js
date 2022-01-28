@@ -949,6 +949,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 }
 
 switch ( process.argv[2] ) { // unit tests
+	case "L?":
 	case "?":
 		Trace("unit test with 'node securelink.js [L$ || L0 || L1 ... ]'");
 		break;
