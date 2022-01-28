@@ -59,7 +59,7 @@ const
 
 	// For working socketio
 	SOCKETIO = require("socketio"),
-	{ Copy, Each } = require("../enums");
+	{ Copy, Each, Debug } = require("../enums");
 
 const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	
@@ -954,18 +954,8 @@ switch ( process.argv[2] ) { // unit tests
 		break;
 	
 	case "L$":
-		const
-			VM = require("vm"),
-			CTX = VM.createContext(SECLINK);
-
-		require("repl").start({
-			eval: (cmd, ctx, filename, cb) => {
-				if ( cmd ) 
-					cb( null, VM.runInContext(cmd, CTX));
-			}, 
-			prompt: "$> ", 
-			useGlobal: true
-		});
+		Debug(SECLINK);
+		break;
 
 }
 
