@@ -426,10 +426,10 @@ Thank you for helping Totem protect its war fighters from bad data.
 		
 	//============ socket.io support functions
 	
-	Join: (location,cbs) => {		//< Request connection with socket.io
+	Join: (ip,location,cbs) => {		//< Request connection with socket.io
 		
 		if ( io ) {		//	socket.io supported
-			//Log("join: client="+ioClient+" location="+location+" url="+window.location);
+			Log( "join", `client=${ioClient} location=${location} ip=${ip} url=${window.location}` );
 			
 			const
 				iosocket = SECLINK.iosocket = io(); 	// issues a connect to socketio
@@ -445,10 +445,12 @@ Thank you for helping Totem protect its war fighters from bad data.
 				client: ioClient,
 				message: "can I join please?",
 				location: location,
+				ip: ip,
 				agent: SECLINK.agent,
 				platform: SECLINK.platform,
 				insecureok: false 
 			}); 
+			//alert("join requested");
 		}
 		
 		else
@@ -508,7 +510,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 
 	Sockets: cbs => {		//< Establish socket.io callbacks to the CRUD i/f 
 
-		function joinService(location) {
+		function joinService(ip,location) {
 			function displayNotice(req,msg) {
 				const
 					{ secureLink } = SECLINK,
@@ -580,7 +582,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 				}
 			}
 
-			Join( location, Copy({		// join the socket.io manager
+			Join( ip, location, Copy({		// join the socket.io manager
 
 				close: req => alert("secureLink closed!"),
 				

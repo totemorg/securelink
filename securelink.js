@@ -59,7 +59,7 @@ const
 
 	// For working socketio
 	SOCKETIO = require("socketio"),
-	{ Copy, Each, Debug } = require("../enums");
+	{ Copy, Each, Debug, Log } = require("../enums");
 
 const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	
@@ -73,17 +73,20 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	sqls: {
 		//addProfile: "INSERT INTO openv.profiles SET ?",
 		getProfile: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
-		addSession: "INSERT INTO openv.sessions SET ?",
+		
+		//getSession: "SELECT * FROM openv.profiles WHERE SessionID=? LIMIT 1",
+		addSession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Count=Count+1,?",
+		endSession: "SELECT max(timestampdiff(minute,Opened,now())) AS T, count(ID) AS N FROM openv.sessions WHERE Client=?", 
+
 		getRiddle: "SELECT * FROM openv.riddles WHERE ? LIMIT 1",
 		
 		getAccount:	"SELECT *,aes_decrypt(unhex(Password),?) AS Password, hex(aes_encrypt(ID,?)) AS SessionID FROM openv.profiles WHERE Client=?", 
 		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,':',Password),'')", 
 		setPassword: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,':',Password),'') WHERE Client=?",
 		getToken: "SELECT Client FROM openv.profiles WHERE TokenID=? AND Expires>now()", 
-		addToken: "UPDATE openv.profiles SET TokenID=? WHERE Client=?",
-		getSession: "SELECT * FROM openv.profiles WHERE SessionID=? LIMIT 1",
-		addSession: "UPDATE openv.profiles SET SessionID=? WHERE Client=?",
-		endSession: "UPDATE openv.profiles SET SessionID=null WHERE Client=?",		
+		addToken: "UPDATE openv.profiles SET TokenID=? WHERE Client=?"
+		//addSession: "UPDATE openv.profiles SET SessionID=? WHERE Client=?",
+		//endSession: "UPDATE openv.profiles SET SessionID=null WHERE Client=?",		
 	},
 	
 	// config options
@@ -216,6 +219,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 			}
 		}
 
+		/*
 		function genSession( sql, account, cb ) {
 			genCode(sessionLen, id => {
 				sql.query(
@@ -230,6 +234,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				});
 			});
 		}
+		*/
 
 		/*
 		function genGuest( sql, account, expires, cb ) {
@@ -277,7 +282,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 		const
 			{ isTrusted, notify, sqlThread, host,
 			expireTemp, expirePerm, expirePass } = SECLINK,
-			{ getAccount, addAccount, addToken, getToken, getSession, addSession, endSession, setPassword } = sqls,
+			{ getAccount, addAccount, addToken, getToken, setPassword } = sqls,
 			encryptionPassword = ENV.LINK_PASS || "securePass",
 			allowSecureConnect = true,
 			[account,password] = login.split("/"),
@@ -541,22 +546,24 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 			Trace("listening to sockets");
 
 			socket.on("join", (req,socket) => {	// Traps client connect when client emits "join" request
-				Trace("socket admit client*", req);
 				const
 					{client,message,insecureok} = req;
 
+				Trace("channel>>>join admit client");
 				sqlThread( sql => {
 
-					if ( insecureok && addSession )	// log sessions if client permits and if allowed
-						sql.query( addSession, {
+					if ( addSession ) {	// log sessions if allowed
+						const log = {
 							Opened: new Date(),
 							Client: client,
 							Location: req.location,
-							IP: req.ip,
+							IPclient: req.ip,
 							Agent: req.agent,
 							Platform: req.platform
-						});
-
+						};
+						sql.query( addSession, [log,log] );
+					}
+					
 					sql.query(getProfile, [client], (err,profs) => { 
 
 						/**
@@ -667,7 +674,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 						}
 						
 						catch (err) {
-							Trace(err,"Join failed");
+							Trace(err,"join failed");
 						}
 					});
 				}); 
@@ -677,7 +684,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				const
 					{client,ip,location,message} = req;
 
-				Trace("socket store client history*", req);
+				Trace("channel>>>store client history");
 
 				sqlThread( sql => {
 					sql.query(
@@ -702,7 +709,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				const
 					{client,ip,location,message} = req;
 
-				Trace("socket restore client history*", req);
+				Trace("channel>>>restore client history");
 				sqlThread( sql => {
 					sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
 					[client],
@@ -735,7 +742,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 					{ login, client } = req,
 					[account,password,reset] = login.split("/");
 				
-				Trace("socket login", `${client}/${account}/${password}` );
+				Trace("channel>>>login client", `${client}/${account}/${password}` );
 
 				if ( account )
 					switch ( account ) {
@@ -834,9 +841,10 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 			
 			socket.on("relay", (req,socket) => {
 				const
-					{ from,message,to,insecureok,route } = req;
+					{ from,message,to,insecureok,route } = req,
+					{ endSessions } = sqls;
 
-				Trace("socket relay", req);
+				Trace("channel>>>relay", req);
 
 				if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
 					SIO.emitOthers(from, "relay", {	// broadcast message to everyone
@@ -849,13 +857,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				if ( insecureok ) 	// relay scored messages that are unencrypted
 					inspect( message, to, score => {
 						sqlThread( sql => {
-							sql.query(
-								"SELECT "
-									+ "max(timestampdiff(minute,Opened,now())) AS T, "
-									+ "count(ID) AS N FROM openv.sessions WHERE Client=?", 
-								[from], 
-								(err,recs) => {
-
+							sql.query( endSession, [from], (err,recs) => {
 								const 
 									{N,T} = err ? {N:0,T:1} : recs[0],
 									lambda = N/T;
@@ -896,7 +898,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 			});
 
 			socket.on("announce", req => {
-				Trace("socket announce client*", req);
+				Trace("channel>>>announce client");
 
 				const
 					{ client,pubKey } = req;
@@ -925,7 +927,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 			});  
 			
 			socket.on("kill", (req,socket) => {
-				Trace("socket kill session*", req);
+				Trace("channel>>>kill session");
 				
 				socket.end();
 			});
