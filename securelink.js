@@ -64,7 +64,7 @@ const
 	//HUBIO = new (SIOHUB);
 
 	// For working socketio
-	SOCKETIO = require("socketio"),
+	SOCKETIO = require("../socketio"),
 	{ Copy, Each, Debug, Log } = require("../enums");
 
 const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
