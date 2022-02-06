@@ -5,13 +5,19 @@ Provides a private (end-to-end encrypted) message link between trusted clients a
 
 This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
+## Env Dependencies
+									  
+	LINK_PASS = passphrase to encrypt user passwords ["securePass"]
+	LINK_HOST = name of secure link host ["secureHost"]
+									  
 @module SECLINK
 @author [ACMESDS](https://totemstan.github.io)
 
-@requires socketio
+@requires [enums](https://github.com/totemstan/enums) 
+@requires [socketio](https://github.com/totemstan/socketio)
+
 @requires socket.io
 @requires crypto
-@requires enums
 
 @example
 

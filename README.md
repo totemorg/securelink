@@ -1,4 +1,4 @@
-# SecureLink
+# secureLink [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)
 
 **SecureLink** is built on [SocketIO](https://github.com/totemstan/socketio) and provides a secure link between clients 
 through the use of PGP end-to-end encryption.  **SecureLink** also provides antibot technology to challenge clients, 
@@ -36,16 +36,6 @@ Clone **SecureLink** from one of its repos:
 	git clone https://sc.appdev.proj.coe/acmesds/securelink
 	git clone https://gitlab.west.nga.ic.gov/acmesds/securelink
 
-and its dependent modules:
-
-+ **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
-+ **SOCKETIO** [WWW](https://github.com/totemstan/socketio) [COE](https://sc.appdev.proj.coe/acmesds/socketio) [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
-
-## Env vars
-									  
-	LINK_PASS = passphrase to encrypt user passwords ["securePass"]
-	LINK_HOST = name of secure link host ["secureHost"]
-									  
 ## Program Reference
 <details>
 <summary>
@@ -57,6 +47,10 @@ and its dependent modules:
 <dt><a href="#module_SECLINK">SECLINK</a></dt>
 <dd><p>Provides a private (end-to-end encrypted) message link between trusted clients and secure logins. </p>
 <p>This module documented in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
+<h2 id="env-dependencies">Env Dependencies</h2>
+<pre><code>LINK_PASS = passphrase to encrypt user passwords [&quot;securePass&quot;]
+LINK_HOST = name of secure link host [&quot;secureHost&quot;]
+</code></pre>
 </dd>
 <dt><a href="#module_SECLINK-CLIENT">SECLINK-CLIENT</a></dt>
 <dd><p>Provides UIs for operating private (end-to-end encrypted) messaging link 
@@ -77,7 +71,12 @@ Provides a private (end-to-end encrypted) message link between trusted clients a
 
 This module documented in accordance with [jsdoc](https://jsdoc.app/).
 
-**Requires**: <code>module:socketio</code>, <code>module:socket.io</code>, <code>module:crypto</code>, <code>module:enums</code>  
+## Env Dependencies
+									  
+	LINK_PASS = passphrase to encrypt user passwords ["securePass"]
+	LINK_HOST = name of secure link host ["secureHost"]
+
+**Requires**: <code>module:[enums](https://github.com/totemstan/enums)</code>, <code>module:[socketio](https://github.com/totemstan/socketio)</code>, <code>module:socket.io</code>, <code>module:crypto</code>  
 **Author**: [ACMESDS](https://totemstan.github.io)  
 **Example**  
 ```js
