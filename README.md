@@ -30,11 +30,11 @@ and a secure login mechanisim.  **SecureLink** establishes the following SocketI
 	
 ## Installation
 
-Clone **SecureLink** from one of its repos:
+Clone **SecureLink** from one of its REPOs:
 
-	git clone https://github.com/totemstan/securelink
-	git clone https://sc.appdev.proj.coe/acmesds/securelink
-	git clone https://gitlab.west.nga.ic.gov/acmesds/securelink
+	cd MYPROJECT
+	git clone REPO/totemstan/securelink
+	git clone REPO/totemstan/enum
 
 ## Program Reference
 <details>
