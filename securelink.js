@@ -16,8 +16,8 @@ This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires [enums](https://github.com/totemstan/enums) 
 @requires [socketio](https://github.com/totemstan/socketio)
 
-@requires socket.io
-@requires crypto
+@requires [socket.io](https://www.npmjs.com/package/socket.io)
+@requires [crypto](https://nodejs.org/docs/latest/api/)
 
 @example
 

@@ -76,7 +76,7 @@ This module documented in accordance with [jsdoc](https://jsdoc.app/).
 	LINK_PASS = passphrase to encrypt user passwords ["securePass"]
 	LINK_HOST = name of secure link host ["secureHost"]
 
-**Requires**: <code>module:[enums](https://github.com/totemstan/enums)</code>, <code>module:[socketio](https://github.com/totemstan/socketio)</code>, <code>module:socket.io</code>, <code>module:crypto</code>  
+**Requires**: <code>module:[enums](https://github.com/totemstan/enums)</code>, <code>module:[socketio](https://github.com/totemstan/socketio)</code>, <code>module:[socket.io](https://www.npmjs.com/package/socket.io)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>  
 **Author**: [ACMESDS](https://totemstan.github.io)  
 **Example**  
 ```js
