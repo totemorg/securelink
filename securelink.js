@@ -65,7 +65,7 @@ const
 
 	// For working socketio
 	SOCKETIO = require("./socketio"),
-	{ Copy, Each, Debug, Log } = require("./enums");
+	{ Copy, Each, Start, Log } = require("./enums");
 
 const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	
@@ -956,8 +956,8 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	
 }
 
-Debug("securelink", {	// unit test
-	$: SECLINK
+Start("securelink", {
+	ctx: SECLINK
 });
 
 // UNCLASSIFIED
