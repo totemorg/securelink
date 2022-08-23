@@ -37,7 +37,27 @@ Clone **SecureLink** from one of its REPOs:
 	git clone REPO/totemstan/enum
 
 ## Usage
-See the Program Reference examples.
+
+Acquire and optionally configure **SecureLink** as follows:
+
+	const SECLINK = require("securelink").config({
+		key: value, 						// set key
+		"key.key": value, 					// indexed set
+		"key.key.": value					// indexed append
+	});
+	
+where its configuration keys (
+[WWW](http://totem.zapto.org/shares/prm/totem/index.html) 
+[COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) 
+[SBU](https://totem.nga.mil/shares/prm/totem/index.html)
+)
+follow the **ENUMS** deep copy conventions (
+[WWW](https://github.com/totemstan/enum) 
+[COE](https://sc.appdev.proj.coe/acmesds/enum) 
+[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
+).
+See the Program Reference for examples.
+
 						  
 ## Program Reference
 <details>

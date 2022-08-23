@@ -952,6 +952,8 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 		*/
 		
 		extendChallenger ( );
+		
+		return SECLINK;
 	},
 	
 }
