@@ -1,6 +1,6 @@
-# secureLink [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)
+# [secureLink](https://github.com/totem-man/securelink)
 
-**SecureLink** is built on [SocketIO](https://github.com/totemstan/socketio) and provides a secure link between clients 
+**SecureLink** is built on [SocketIO](https://github.com/totem-man/socketio) and provides a secure link between clients 
 through the use of PGP end-to-end encryption.  **SecureLink** also provides antibot technology to challenge clients, 
 and a secure login mechanisim.  **SecureLink** establishes the following SocketIO protocol
 
@@ -33,8 +33,8 @@ and a secure login mechanisim.  **SecureLink** establishes the following SocketI
 Clone **SecureLink** from one of its REPOs:
 
 	cd MYPROJECT
-	git clone REPO/totemstan/securelink
-	git clone REPO/totemstan/enum
+	git clone REPO/totem-man/securelink
+	git clone REPO/totem-man/enum
 
 ## Usage
 
@@ -46,19 +46,15 @@ Acquire and optionally configure **SecureLink** as follows:
 		"key.key.": value					// indexed append
 	});
 	
-where its configuration keys (
-[WWW](http://totem.zapto.org/shares/prm/totem/index.html) 
-[COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) 
-[SBU](https://totem.nga.mil/shares/prm/totem/index.html)
-)
-follow the **ENUMS** deep copy conventions (
-[WWW](https://github.com/totemstan/enum) 
-[COE](https://sc.appdev.proj.coe/acmesds/enum) 
-[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
-).
-See the Program Reference for examples.
+## Contacting, Contributing, Following
 
-						  
+Feel free to 
+* submit and status [TOTEM issues](http://totem.hopto.org/issues.view) 
+* contribute to [TOTEM notebooks](http://totem.hopto.org/shares/notebooks/) 
+* revise [TOTEM requirements](http://totem.hopto.org/reqts.view) 
+* browse [TOTEM holdings](http://totem.hopto.org/) 
+* or follow [TOTEM milestones](http://totem.hopto.org/milestones.view) 
+			  
 ## Program Reference
 <details>
 <summary>
