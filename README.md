@@ -28,13 +28,13 @@ and a secure login mechanisim.  **SecureLink** establishes the following SocketI
 	* sends to all clients
 	** sends to all clients except the requesting client
 	
-## Installation
+## Manage
 
-Clone **SecureLink** from one of its REPOs:
-
-	cd MYPROJECT
-	git clone REPO/totem-man/securelink
-	git clone REPO/totem-man/enum
+	npm install @totemstan/securelink	# install
+	npm run start [ ? | $ | ...]		# Unit test
+	npm run verminor					# Roll minor version
+	npm run vermajor					# Roll major version
+	npm run redoc						# Regen documentation
 
 ## Usage
 
@@ -95,7 +95,7 @@ This module documented in accordance with [jsdoc](https://jsdoc.app/).
 	LINK_PASS = passphrase to encrypt user passwords ["securePass"]
 	LINK_HOST = name of secure link host ["secureHost"]
 
-**Requires**: <code>module:[enums](https://github.com/totemstan/enums)</code>, <code>module:[socketio](https://github.com/totemstan/socketio)</code>, <code>module:[socket.io](https://www.npmjs.com/package/socket.io)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>  
+**Requires**: <code>module:[enums](https://www.npmjs.com/package/@totemstan/enums)</code>, <code>module:[socketio](https://www.npmjs.com/package/@totemstan/socketio)</code>, <code>module:[socket.io](https://www.npmjs.com/package/socket.io)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>  
 **Author**: [ACMESDS](https://totemstan.github.io)  
 **Example**  
 ```js

@@ -13,8 +13,8 @@ This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @module SECLINK
 @author [ACMESDS](https://totemstan.github.io)
 
-@requires [enums](https://github.com/totemstan/enums) 
-@requires [socketio](https://github.com/totemstan/socketio)
+@requires [enums](https://www.npmjs.com/package/@totemstan/enums) 
+@requires [socketio](https://www.npmjs.com/package/@totemstan/socketio)
 
 @requires [socket.io](https://www.npmjs.com/package/socket.io)
 @requires [crypto](https://nodejs.org/docs/latest/api/)
@@ -64,8 +64,8 @@ const
 	//HUBIO = new (SIOHUB);
 
 	// For working socketio
-	SOCKETIO = require("./socketio"),
-	{ Copy, Each, Start, Log } = require("./enums");
+	SOCKETIO = require("@totemstan/socketio"),
+	{ Copy, Each, Start, Log } = require("@totemstan/enums");
 
 const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	
