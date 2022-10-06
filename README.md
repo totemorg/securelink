@@ -1,6 +1,6 @@
 # [secureLink](https://github.com/totem-man/securelink)
 
-**SecureLink** is built on [SocketIO](https://github.com/totem-man/socketio) and provides a secure link between clients 
+**SecureLink** (built on [SocketIO](https://github.com/totem-man/socketio)) provides a secure link between clients 
 through the use of PGP end-to-end encryption.  **SecureLink** also provides antibot technology to challenge clients, 
 and a secure login mechanisim.  **SecureLink** establishes the following SocketIO protocol
 
