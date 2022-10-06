@@ -1,5 +1,5 @@
 {
-  "name": "securelink",
+  "name": "@totemstan/securelink",
   "version": "1.10.0",
   "description": "E2EE gov only",
   "main": "securelink",
