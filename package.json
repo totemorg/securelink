@@ -1,6 +1,6 @@
 {
   "name": "@totemstan/securelink",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "description": "E2EE gov only",
   "main": "securelink",
   "scripts": {
@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/totemstan/securelink#readme",
   "dependencies": {
-    "@totemstan/enums": "^1.16.0",
+    "@totemstan/enums": "^1.17.0",
     "@totemstan/socketio": "^1.5.0",
     "socket.io": "^3.1.0",
     "socket.io-client": "^3.1.0",
