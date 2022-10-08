@@ -18,7 +18,7 @@ specification (less the bugs of course).
 
 Acquire **SocketIO** as follows:
 
-	const SIO = require("socketio");
+	const SIO = require("@totemstan/socketio");
 	
 See the Program Reference for examples.
 
