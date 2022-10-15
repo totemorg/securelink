@@ -1,6 +1,6 @@
-# [secureLink](https://github.com/totem-man/securelink)
+# [secureLink](https://www.npmjs.com/package/@totemorg/securelink)
 
-**SecureLink** (built on [SocketIO](https://github.com/totem-man/socketio)) provides a secure link between clients 
+**SecureLink** (built on [SocketIO](https://www.npmjs.com/package/@totemorg/socketio)) provides a secure link between clients 
 through the use of PGP end-to-end encryption.  **SecureLink** also provides antibot technology to challenge clients, 
 and a secure login mechanisim.  **SecureLink** establishes the following SocketIO protocol
 
@@ -30,7 +30,7 @@ and a secure login mechanisim.  **SecureLink** establishes the following SocketI
 	
 ## Manage
 
-	npm install @totemstan/securelink	# install
+	npm install @totemorg/securelink	# install
 	npm run start [ ? | $ | ...]		# Unit test
 	npm run verminor					# Roll minor version
 	npm run vermajor					# Roll major version
@@ -40,13 +40,13 @@ and a secure login mechanisim.  **SecureLink** establishes the following SocketI
 
 Acquire and optionally configure **SecureLink** as follows:
 
-	const SECLINK = require("@totemstan/securelink").config({
+	const SECLINK = require("@totemorg/securelink").config({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
 	});
 	
-where configuration keys follow [ENUMS deep copy conventions](https://github.com/totem-man/enums).
+where configuration keys follow [ENUMS deep copy conventions](https://www.npmjs.com/package/@totemorg/enums).
 
 ## Program Reference
 <details>
@@ -65,7 +65,8 @@ LINK_HOST = name of secure link host [&quot;secureHost&quot;]
 </code></pre>
 </dd>
 <dt><a href="#module_SECLINK-CLIENT">SECLINK-CLIENT</a></dt>
-<dd><p>Provides UIs for operating private (end-to-end encrypted) messaging link 
+<dd><p>The client-side of <a href="https://www.npmjs.com/package/@totemorg/securelink">securelink</a>.</p>
+<p>Provides UIs for operating private (end-to-end encrypted) messaging link 
 between trusted clients.  </p>
 <p>This module documented in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
 <p>The UIs herein are created in the /site.jade and support:</p>
@@ -88,8 +89,8 @@ This module documented in accordance with [jsdoc](https://jsdoc.app/).
 	LINK_PASS = passphrase to encrypt user passwords ["securePass"]
 	LINK_HOST = name of secure link host ["secureHost"]
 
-**Requires**: <code>module:[enums](https://www.npmjs.com/package/@totemstan/enums)</code>, <code>module:[socketio](https://www.npmjs.com/package/@totemstan/socketio)</code>, <code>module:[socket.io](https://www.npmjs.com/package/socket.io)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>  
-**Author**: [ACMESDS](https://totemstan.github.io)  
+**Requires**: <code>module:[enums](https://www.npmjs.com/package/@totemorg/enums)</code>, <code>module:[socketio](https://www.npmjs.com/package/@totemorg/socketio)</code>, <code>module:[socket.io](https://www.npmjs.com/package/socket.io)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>  
+**Author**: [ACMESDS](https://totemorg.github.io)  
 **Example**  
 ```js
 On the server:
@@ -181,6 +182,8 @@ Establish socketio channels for the SecureIntercom link (at store,restore,login,
 <a name="module_SECLINK-CLIENT"></a>
 
 ## SECLINK-CLIENT
+The client-side of [securelink](https://www.npmjs.com/package/@totemorg/securelink).
+
 Provides UIs for operating private (end-to-end encrypted) messaging link 
 between trusted clients.  
 
@@ -193,7 +196,7 @@ The UIs herein are created in the /site.jade and support:
 	+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 
 **Requires**: <code>module:socketio</code>, <code>module:openpgp</code>, <code>module:uibase</code>  
-**Author**: [ACMESDS](https://totemstan.github.io)  
+**Author**: [ACMESDS](https://totemorg.github.io)  
 </details>
 
 ## Contacting, Contributing, Following

@@ -11,10 +11,10 @@ This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 	LINK_HOST = name of secure link host ["secureHost"]
 									  
 @module SECLINK
-@author [ACMESDS](https://totemstan.github.io)
+@author [ACMESDS](https://totemorg.github.io)
 
-@requires [enums](https://www.npmjs.com/package/@totemstan/enums) 
-@requires [socketio](https://www.npmjs.com/package/@totemstan/socketio)
+@requires [enums](https://www.npmjs.com/package/@totemorg/enums) 
+@requires [socketio](https://www.npmjs.com/package/@totemorg/socketio)
 
 @requires [socket.io](https://www.npmjs.com/package/socket.io)
 @requires [crypto](https://nodejs.org/docs/latest/api/)
@@ -64,8 +64,8 @@ const
 	//HUBIO = new (SIOHUB);
 
 	// For working socketio
-	SOCKETIO = require("@totemstan/socketio"),
-	{ Copy, Each, Start, Log } = require("@totemstan/enums");
+	SOCKETIO = require("./socketio"),
+	{ Copy, Each, Start, Log } = require("./enums");
 
 const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	
@@ -211,7 +211,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				sql.query( addAccount, [ 
 					prof,  
 				 	password, 
-				 	encryptionPassword, 
+				 	encryptionPhrase, 
 				 	allowSecureConnect 
 				], (err,info) => {
 					if (err) Trace("add acct", err, info, prof);
@@ -272,7 +272,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 
 		function getProfile( sql, account, cb ) {
 			//Trace("get profile", account, host);
-			sql.query( getAccount, [encryptionPassword, encryptionPassword, account], (err,profs) => {		
+			sql.query( getAccount, [encryptionPhrase, encryptionPhrase, account], (err,profs) => {		
 
 				cb( err ? null : profs[0] || null );
 
@@ -289,7 +289,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 			{ isTrusted, notify, sqlThread, host,
 			expireTemp, expirePerm, expirePass } = SECLINK,
 			{ getAccount, addAccount, addToken, getToken, setPassword } = sqls,
-			encryptionPassword = ENV.LINK_PASS || "securePass",
+			encryptionPhrase = ENV.LINK_PASS || "securePass",
 			allowSecureConnect = true,
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);
@@ -300,10 +300,12 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 			switch ( cb.name ) {
 				case "resetPassword":		// host requesting a password reset
 					getProfile( sql, account, prof => {
+						//Trace("login resetPass", [password, prof]);
+						
 						if ( prof )	{	// have a valid user login
 							if ( passwordOk(password) )
-								sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
-									Trace("setpass", account, password);
+								sql.query( setPassword, [password, encryptionPhrase, allowSecureConnect, account], err => {
+									Trace("setpass", [account, password]);
 									cb( err ? errors.resetFailed : null, prof );
 								});
 
@@ -356,7 +358,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 					
 					getProfile( sql, account, prof => {
 						if ( prof )	{	// have a valid user login
-							//Trace(password, prof);
+							//Trace("login newSession", [password, prof, password == prof.Password]);
 							if ( prof.Banned ) 				// account banned for some reason
 								cb(	new Error(prof.Banned) );
 
@@ -376,7 +378,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 							else
 							if ( prof.TokenID ) 	// password reset pending
 								if ( passwordOk(password) )
-									sql.query( setPassword, [password, encryptionPassword, allowSecureConnect, account], err => {
+									sql.query( setPassword, [password, encryptionPhrase, allowSecureConnect, account], err => {
 										Trace("setpass", account, password);
 										cb( err ? errors.resetFailed : errors.resetOk );
 									});
@@ -386,7 +388,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 							*/
 							
 							else
-							if (password == prof.Password)		// validate login
+							if (password == prof.Password) 		// login validated
 								cb(null, prof);
 								/*genSession( sql, account, (sessionID,expires) => cb(null, Copy({
 									sessionID: sessionID, 
@@ -776,7 +778,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 							if ( password )
 								if ( reset ) 
 									Login( login, function resetPassword(err,prof) {
-										Trace("socket resetPassword", err);
+										Trace("resetPassword", err);
 										SIO.clients[client].emit("status", { 
 											message: err ? "Password reset failed" : "Password reset",
 										});
@@ -784,8 +786,8 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 							
 								else
 									Login( login, function newSession(err,prof) {
-										Trace("socket newSession", err, prof);
-										try {
+										//console.log("==================>", login,err,prof);
+										Trace("========>newSession", {login: login, err: err, profile: prof, client: client, sio: SIO.clients});
 											if ( err ) 
 												SIO.clients[client].emit("status", { // return error msg to client
 													message: err+"",
@@ -796,21 +798,22 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 
 												SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
 													message: "Login completed",
-													cookie: `session=${prof.Client}; expires=${prof.Expires.toUTCString()}; path=/`
+													cookie: `session=${prof.Client}; expires=${prof.Expires}; path=/`
 													//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
 												});
 
-												SIO.emit("remove", {	// remove old client then
+												SIO.emit("remove", {	// notify all clients to remove this client
 													client: client
 												});
 
-												SIO.emit("accept", {	// accept new client
+												SIO.emit("accept", {	// notify all clients to accept this client
 													client: account,
 													pubKey: prof.pubKey,
 												}); 
 											}
-										}
 
+										try {
+										}
 										catch (err) {
 											Trace(err, "Login failed");
 										}

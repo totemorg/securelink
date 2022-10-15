@@ -1,6 +1,8 @@
 // UNCLASSIFIED 
 
 /**
+The client-side of [securelink]{@link https://www.npmjs.com/package/@totemorg/securelink}.
+
 Provides UIs for operating private (end-to-end encrypted) messaging link 
 between trusted clients.  
 
@@ -13,7 +15,7 @@ The UIs herein are created in the /site.jade and support:
 	+ data encryption (GenKeys, Encrypt, Decrypt, Encode, Decode)
 
 @module SECLINK-CLIENT
-@author [ACMESDS](https://totemstan.github.io)
+@author [ACMESDS](https://totemorg.github.io)
 
 @requires socketio
 @requires openpgp
@@ -28,8 +30,6 @@ function secure_login() {
 		//lock = document.getElementById("lock"),
 		users = document.getElementById("users");
 
-	//alert(notice.value);
-	
 	try {
 		const
 			{ pubKeys } = SECLINK,
@@ -582,7 +582,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 				}
 			}
 
-			Join( ip, location, Copy({		// join the socket.io manager
+			Join( ip, location, Copy({		// join the socket.io manager with the following listeners
 
 				close: req => alert("secureLink closed!"),
 				
@@ -665,8 +665,10 @@ Thank you for helping Totem protect its war fighters from bad data.
 				
 				status: req => {
 					
+					alert("status");
+					console.log("===============status", req);
 					Log("status", req);
-					
+					alert(JSON.stringify(req));
 					if ( req.cookie ) {
 						document.cookie = req.cookie; 
 

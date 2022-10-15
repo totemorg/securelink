@@ -1,6 +1,6 @@
-# [secureLink](https://github.com/totem-man/securelink)
+# [secureLink](https://www.npmjs.com/package/@totemorg/securelink)
 
-**SecureLink** (built on [SocketIO](https://github.com/totem-man/socketio)) provides a secure link between clients 
+**SecureLink** (built on [SocketIO](https://www.npmjs.com/package/@totemorg/socketio)) provides a secure link between clients 
 through the use of PGP end-to-end encryption.  **SecureLink** also provides antibot technology to challenge clients, 
 and a secure login mechanisim.  **SecureLink** establishes the following SocketIO protocol
 
@@ -30,7 +30,7 @@ and a secure login mechanisim.  **SecureLink** establishes the following SocketI
 	
 ## Manage
 
-	npm install @totemstan/securelink	# install
+	npm install @totemorg/securelink	# install
 	npm run start [ ? | $ | ...]		# Unit test
 	npm run verminor					# Roll minor version
 	npm run vermajor					# Roll major version
@@ -40,13 +40,13 @@ and a secure login mechanisim.  **SecureLink** establishes the following SocketI
 
 Acquire and optionally configure **SecureLink** as follows:
 
-	const SECLINK = require("@totemstan/securelink").config({
+	const SECLINK = require("@totemorg/securelink").config({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
 	});
 	
-where configuration keys follow [ENUMS deep copy conventions](https://github.com/totem-man/enums).
+where configuration keys follow [ENUMS deep copy conventions](https://www.npmjs.com/package/@totemorg/enums).
 
 ## Program Reference
 <details>
