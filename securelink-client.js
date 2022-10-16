@@ -22,6 +22,9 @@ The UIs herein are created in the /site.jade and support:
 @requires uibase
 */
 
+const
+	secTrace = (...args) => console.log(">>>seclink",args);
+
 function secure_login() {
 
 	const
@@ -35,6 +38,8 @@ function secure_login() {
 			{ pubKeys } = SECLINK,
 			login = notice.value;
 
+		alert(login);
+		
 		iosocket.emit("login", {
 			login: login,
 			client: ioClient
@@ -42,7 +47,7 @@ function secure_login() {
 	}
 
 	catch (err) {
-		Log("login", err);
+		secTrace("login", err);
 		notice.value = "login failed";
 	}
 
@@ -92,6 +97,8 @@ function secure_delete() {
 }
 
 function secure_signal() {		//< send secure notice message to server
+	console.log("SECLINK", SECLINK);
+	
 	const
 		{ bang, secureLink, iosocket } = SECLINK;
 
@@ -104,13 +111,13 @@ function secure_signal() {		//< send secure notice message to server
 		notice = document.getElementById("notice"),
 		upload = document.getElementById("upload");
 	
-	//Log(secureLink, iosocket, secure);
+	//secTrace(secureLink, iosocket, secure);
 
 	const
 		{ pubKeys } = SECLINK,
 		{ secure, priKey, passphrase, lookups, history, myRoom } = secureLink;
 
-	//Log(pubKeys, priKey);
+	//secTrace(pubKeys, priKey);
 
 	const
 		files = Array.from(upload.files),
@@ -120,10 +127,10 @@ function secure_signal() {		//< send secure notice message to server
 		var todo = files.length;
 
 		Each( files, (key,file) => {
-			//Log(key,file);
+			//secTrace(key,file);
 			if ( file && file.type == "text/plain" ) {
 				var reader = new FileReader();
-				//Log(reader);
+				//secTrace(reader);
 				reader.readAsText(file, "UTF-8");
 				reader.onload = function (evt) {
 					//alert( evt.target.result );
@@ -140,7 +147,7 @@ function secure_signal() {		//< send secure notice message to server
 	}
 
 	function send(msg,to) {
-		Log("signal", msg, ioClient, "=>", to );
+		secTrace("signal", msg, ioClient, "=>", to );
 
 		history.push( msg + "=>" + to /*{
 			msg: msg,
@@ -151,7 +158,7 @@ function secure_signal() {		//< send secure notice message to server
 
 		if ( pubKey = pubKeys[to] )		// use secureLink when target in ecosystem
 			Encrypt( passphrase, msg, pubKey, priKey, msg => {
-				Log(notice.value,msg);
+				secTrace(notice.value,msg);
 				iosocket.emit("relay", {		// send encrypted pgp-armored message
 					message: msg,
 					from: ioClient,
@@ -172,7 +179,7 @@ function secure_signal() {		//< send secure notice message to server
 			});
 	}
 
-	Log(msg,"=>",to);
+	secTrace(msg,"=>",to);
 	if ( files.length ) 
 		readTextFiles( msg, files, msg => {
 			send(msg,to);
@@ -329,19 +336,19 @@ Thank you for helping Totem protect its war fighters from bad data.
 			armor: true                                   // ASCII armor 
 		});
 		//const encrypted = message.packets.write(); // get raw encrypted packets as Uint8Array
-		//Log( "encode", encrypted );
+		//secTrace( "encode", encrypted );
 		cb ( encrypted );
 	},
 				 
 	Decode: async (password, msg, cb) => {
-		//Log(password,msg);
+		//secTrace(password,msg);
 		const { data: decrypted } = await openpgp.decrypt({
 			message:  await openpgp.message.readArmored(msg), // parse encrypted bytes
 			passwords: [password]                     // decrypt with password
 			//format: 'binary'                        // output as Uint8Array
 		});
 		
-		//Log( "decode", decrypted ); 
+		//secTrace( "decode", decrypted ); 
 		cb( decrypted );
 	},		
 	
@@ -364,7 +371,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 		
 		//alert("encrypt with="+passphrase);
 		
-		//Log(openpgp);
+		//secTrace(openpgp);
 		const { keys: [privateKey] } = await openpgp.key.readArmored(privateKeyArmored);
 		
 		//await privateKey.decrypt(passphrase);
@@ -400,7 +407,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 		}
 		
 		catch (err) {
-			Log("wrong passphrase");
+			secTrace("wrong passphrase");
 			cb( null );
 			return;
 		} 
@@ -429,7 +436,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 	Join: (ip,location,cbs) => {		//< Request connection with socket.io
 		
 		if ( io ) {		//	socket.io supported
-			Log( "join", `client=${ioClient} location=${location} ip=${ip} url=${window.location}` );
+			secTrace( "join", `client=${ioClient} location=${location} ip=${ip} url=${window.location}` );
 			
 			const
 				iosocket = SECLINK.iosocket = io(); 	// issues a connect to socketio
@@ -438,8 +445,8 @@ Thank you for helping Totem protect its war fighters from bad data.
 			for (var action in cbs) 				// setup socket.io callbacks
 				iosocket.on(action, cbs[action]);
 
-			//iosocket.on("connect", req => Log("connect", req, iosocket.id) );
-			//iosocket.on("disconnect", req => Log("disconnect", req,iosocket.id) );
+			//iosocket.on("connect", req => secTrace("connect", req, iosocket.id) );
+			//iosocket.on("disconnect", req => secTrace("disconnect", req,iosocket.id) );
 			
 			iosocket.emit("join", {		// request permission to join
 				client: ioClient,
@@ -454,13 +461,15 @@ Thank you for helping Totem protect its war fighters from bad data.
 		}
 		
 		else
-			Log("no socketio - insecure mode"); 
+			secTrace("no socketio - insecure mode"); 
 		
 	},
 
 	initSecureLink: ( pubKeysOnline, passphrase, cb ) => {
 
 		const { pubKeys } = SECLINK;
+		
+		secTrace("initialize");
 		
 		if ( passphrase ) 
 			GenKeys( passphrase, (pubKey, priKey) => {
@@ -492,14 +501,14 @@ Thank you for helping Totem protect its war fighters from bad data.
 
 				Object.keys(pubKeys).forEach( (client,i) => lookups["$"+i] = client );
 				
-				//Log(lookups);
+				//secTrace(lookups);
 				
 				iosocket.emit("announce", {		// annnouce yourself
 					client: ioClient,
 					pubKey: pubKey,
 				});	
 
-				//Log("keys", pubKey,priKey,lookups);
+				//secTrace("keys", pubKey,priKey,lookups);
 				cb(secure);	
 			});
 		
@@ -582,12 +591,15 @@ Thank you for helping Totem protect its war fighters from bad data.
 				}
 			}
 
+			secTrace("joining");
+			
 			Join( ip, location, Copy({		// join the socket.io manager with the following listeners
 
-				close: req => alert("secureLink closed!"),
+				close: req => secTrace("link closed!"),
 				
 				start: req => {		// start secure link with supplied passphrase
-					Log("start", req);
+					secTrace("start", req);
+					
 					if ( openpgp )
 						initSecureLink( req.pubKeys, req.passphrase, secure => {
 							notice.value = `Welcome ${ioClient}`;
@@ -597,7 +609,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 						});
 					
 					else
-						Log("secureLink not installed");
+						secTrace("openpgp not installed");
 				},
 
 				content: req => {		// ingest message history content 
@@ -620,21 +632,21 @@ Thank you for helping Totem protect its war fighters from bad data.
 						{ secureLink } = SECLINK,
 						{ from,to,message } = req;
 
-					Log("sync", req);
+					secTrace("sync", req);
 					pubKeys[from] = message;
 					
 					updateUsers();
 				},
 
 				relay: req => {			// relay message or public key
-					Log("relay", req);
+					secTrace("relay", req);
 
 					const
 						{ secureLink } = SECLINK,
 						{ from,to,message,score } = req,
 						forMe = (to == ioClient) || (to == "all");
 
-					//Log(">>>>forme", from,to,ioClient,forMe);
+					//secTrace(">>>>forme", from,to,ioClient,forMe);
 					
 					if ( forMe )
 						if ( secureLink.passphrase && message.indexOf("BEGIN PGP MESSAGE")>=0 )
@@ -650,14 +662,14 @@ Thank you for helping Totem protect its war fighters from bad data.
 				},
 
 				accept: req => {
-					Log("accept", req);
+					secTrace("accept", req);
 					const {client,pubKey} = req;
 					pubKeys[client] = pubKey;
 					updateUsers();
 				},
 				
 				remove: req => {
-					Log("remove",req);
+					secTrace("remove",req);
 					const {client} = req;
 					delete pubKeys[client];
 					updateUsers();
@@ -667,7 +679,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 					
 					alert("status");
 					console.log("===============status", req);
-					Log("status", req);
+					secTrace("status", req);
 					alert(JSON.stringify(req));
 					if ( req.cookie ) {
 						document.cookie = req.cookie; 
