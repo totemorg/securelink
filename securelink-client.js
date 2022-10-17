@@ -23,7 +23,7 @@ The UIs herein are created in the /site.jade and support:
 */
 
 const
-	secTrace = (...args) => console.log(">>>seclink",args);
+	secTrace = (...args) => console.log(">seclink",args);
 
 function secure_login() {
 
@@ -38,8 +38,6 @@ function secure_login() {
 			{ pubKeys } = SECLINK,
 			login = notice.value;
 
-		alert(login);
-		
 		iosocket.emit("login", {
 			login: login,
 			client: ioClient
@@ -97,8 +95,6 @@ function secure_delete() {
 }
 
 function secure_signal() {		//< send secure notice message to server
-	console.log("SECLINK", SECLINK);
-	
 	const
 		{ bang, secureLink, iosocket } = SECLINK;
 
@@ -677,10 +673,7 @@ Thank you for helping Totem protect its war fighters from bad data.
 				
 				status: req => {
 					
-					alert("status");
-					console.log("===============status", req);
-					secTrace("status", req);
-					alert(JSON.stringify(req));
+					secTrace("status/cookie", req);
 					if ( req.cookie ) {
 						document.cookie = req.cookie; 
 

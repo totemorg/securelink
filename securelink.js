@@ -107,10 +107,10 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	host: ENV.LINK_HOST || "secureHost",
 			
 	challenge: {	//< for antibot client challenger 
-		extend: 0,
-		store: [],
-		checkEndpoint: "/riddle",
-		captchaEndpoint: "/captchaEndpoint",
+		extend: 0,			// number to add to store
+		store: [],			// challenge store
+		checkEndpoint: "/checkEndpoint",		// endpoint to test client response
+		captchaEndpoint: "/captchaEndpoint",	// endpoint to provide images
 		map: []
 	},
 	
@@ -202,9 +202,9 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				const
 					trust = isTrusted( account ),
 					prof = Copy({
-						Trusted: trust,
+						Trusted: trust,			// enable to allow client to send trusted messages
 						Challenge: !trust,		// enable to challenge user at session join
-						Client: account,
+						Client: account,		// client
 						Expires: getExpires( trust ? expireTemp : expirePerm )
 					}, Copy( guest, {} ));
 				
@@ -528,7 +528,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 					} );
 				}
 
-			//Trace(store);
+			//Trace(JSON.stringify(store));
 		}
 		
 		const 
@@ -557,7 +557,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				const
 					{client,message,insecureok} = req;
 
-				Trace("channel>>>join admit client");
+				Trace("join admit client");
 				sqlThread( sql => {
 
 					if ( addSession ) {	// log sessions if allowed
@@ -612,7 +612,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 								Attempts: 0,
 								maxAttempts: Retries
 							}, (err,info) => cb({		// send challenge to client
-								message: "??"+(Message||"What is: ")+Q,
+								message: "??"+((Message||"What is: ").parse$(profile))+Q,
 								retries: Retries,
 								timeout: Timeout,
 								callback: checkEndpoint,
@@ -620,7 +620,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 							}) );
 						}
 
-						function getOnline( cb) {
+						function getOnline( cb) {	//< get list of online clients
 							const 
 								keys = {};
 
@@ -692,7 +692,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				const
 					{client,ip,location,message} = req;
 
-				Trace("channel>>>store client history");
+				Trace("store client history");
 
 				sqlThread( sql => {
 					sql.query(
@@ -717,7 +717,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				const
 					{client,ip,location,message} = req;
 
-				Trace("channel>>>restore client history");
+				Trace("restore client history");
 				sqlThread( sql => {
 					sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
 					[client],
@@ -750,7 +750,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 					{ login, client } = req,
 					[account,password,reset] = login.split("/");
 				
-				Trace("channel>>>login client", `${client}/${account}/${password}` );
+				Trace("login client", `${client}/${account}/${password}` );
 
 				if ( account )
 					switch ( account ) {
@@ -786,8 +786,8 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 							
 								else
 									Login( login, function newSession(err,prof) {
-										//console.log("==================>", login,err,prof);
-										Trace("========>newSession", {login: login, err: err, profile: prof, client: client, sio: SIO.clients});
+										Trace("newSession", {login: login, err: err, profile: prof, client: client, sio: SIO.clients});
+										try {
 											if ( err ) 
 												SIO.clients[client].emit("status", { // return error msg to client
 													message: err+"",
@@ -812,7 +812,6 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 												}); 
 											}
 
-										try {
 										}
 										catch (err) {
 											Trace(err, "Login failed");
@@ -853,7 +852,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 					{ from,message,to,insecureok,route } = req,
 					{ endSessions } = sqls;
 
-				Trace("channel>>>relay", req);
+				Trace("relay client message", req);
 
 				if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
 					SIO.emitOthers(from, "relay", {	// broadcast message to everyone
@@ -907,7 +906,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 			});
 
 			socket.on("announce", req => {
-				Trace("channel>>>announce client");
+				Trace("announce client");
 
 				const
 					{ client,pubKey } = req;
@@ -936,7 +935,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 			});  
 			
 			socket.on("kill", (req,socket) => {
-				Trace("channel>>>kill session");
+				Trace("kill client session");
 				
 				socket.end();
 			});
