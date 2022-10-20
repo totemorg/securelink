@@ -100,7 +100,6 @@ On the server:
 
 	SECLINK.config({
 		server: server,
-		sqlThread: sqlThread,
 		guest: {....}
 	});
 								

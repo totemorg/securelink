@@ -28,7 +28,6 @@ On the server:
 
 	SECLINK.config({
 		server: server,
-		sqlThread: sqlThread,
 		guest: {....}
 	});
 								
@@ -65,13 +64,44 @@ const
 
 	// For working socketio
 	SOCKETIO = require("./socketio"),
-	{ Copy, Each, Start, Log } = require("./enums");
+	{ Copy, Each, Start, Log, txmailCon, sqlThread } = require("./enums");
 
 const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	
-	Trace: (msg, ...args) => `sio>>>${msg}`.trace( args ),
+	Trace: (msg, ...args) => `secure>>>${msg}`.trace( args ),
 		
-	sqlThread: () => { throw new Error("sqlThread not configured"); },
+	validate: ({client,token,pass}, cb) => {
+		const
+			encryptionPhrase = ENV.LINK_PASS || "securePass";
+
+		sqlThread( sql => {
+			if ( pass ) 
+				sql.query("UPDATE openv.profiles SET Expires=null, Password=hex(aes_encrypt(?,?)) WHERE least(?) AND Expires", [
+						pass,
+						encryptionPhrase,
+						{Client:client, SecureCom:token}
+					], (err,info) => {
+
+					cb( (err || !info.affectedRows) ? new Error("validation failed") : null );
+				});
+
+			else
+				sql.query("UPDATE openv.profiles SET Expires=null WHERE least(?) AND Expires", 
+					{Client:client, SecureCom:token}, 
+					(err,info) => {
+
+					cb( (err || !info.affectedRows) ? new Error("validation failed") : null );
+				});
+		});
+	},
+	
+	notify: opts => {
+		Trace("notify", opts.to);
+		opts.from = "noreply@totem.org";
+		txmailCon.sendMail(opts);
+	},
+
+	//sqlThread: () => { throw new Error("sqlThread not configured"); },
 	
 	server: null,	// established on config
 	sio: null,		// established on config
@@ -87,8 +117,8 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 		getRiddle: "SELECT * FROM openv.riddles WHERE ? LIMIT 1",
 		
 		getAccount:	"SELECT *,aes_decrypt(unhex(Password),?) AS Password, hex(aes_encrypt(ID,?)) AS SessionID FROM openv.profiles WHERE Client=?", 
-		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,':',Password),'')", 
-		setPassword: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,':',Password),'') WHERE Client=?",
+		addAccount:	"INSERT INTO openv.profiles SET ?, Password=hex(aes_encrypt(?,?))", 
+		setPassword: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=? WHERE Client=?",
 		getToken: "SELECT Client FROM openv.profiles WHERE TokenID=? AND Expires>now()", 
 		addToken: "UPDATE openv.profiles SET TokenID=? WHERE Client=?"
 		//addSession: "UPDATE openv.profiles SET SessionID=? WHERE Client=?",
@@ -96,8 +126,6 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	},
 	
 	// config options
-	
-	notify: opts => {},
 	
 	guest: null,		// guest profile - guesting disabled by default
 	
@@ -198,29 +226,30 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 			const
 				{ guest } = SECLINK;
 			
-			if ( guest ) {	// guest profiles allowed
-				const
-					trust = isTrusted( account ),
-					prof = Copy({
-						Trusted: trust,			// enable to allow client to send trusted messages
-						Challenge: !trust,		// enable to challenge user at session join
-						Client: account,		// client
-						Expires: getExpires( trust ? expireTemp : expirePerm )
-					}, Copy( guest, {} ));
-				
-				sql.query( addAccount, [ 
-					prof,  
-				 	password, 
-				 	encryptionPhrase, 
-				 	allowSecureConnect 
-				], (err,info) => {
-					if (err) Trace("add acct", err, info, prof);
-					cb( err ? null : prof );
+			if ( guest ) 	// guest profiles allowed
+				genPassword( token => {
+					const
+						trust = isTrusted( account ),
+						prof = Copy({
+							SecureCom: token, 		// secure validation token
+							Trusted: trust,			// enable to allow client to send trusted messages
+							Challenge: !trust,		// enable to challenge user at session join
+							Client: account,		// client name/email
+							Expires: getExpires( trust ? expireTemp : expirePerm )
+						}, Copy( guest, {} ));
+
+					sql.query( addAccount, [ 
+						prof,  
+						password, 
+						encryptionPhrase
+					], (err,info) => {
+						// if (err) Trace("add acct", err, info, prof);
+						cb( (err || !info.insertId) ? null : prof );
+					});
 				});
-			}
 			
 			else {
-				Trace("Guest accounts disabled");
+				Trace("No guest account template");
 				cb( null );
 			}
 		}
@@ -280,17 +309,15 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 		}
 		
 		const
-			passwordLen = 4,
+			passwordLen = 32,
 			accountLen = 16,
 			sessionLen = 32,
 			tokenLen = 4;
 
 		const
-			{ isTrusted, notify, sqlThread, host,
-			expireTemp, expirePerm, expirePass } = SECLINK,
+			{ isTrusted, notify, host, expireTemp, expirePerm, expirePass } = SECLINK,
 			{ getAccount, addAccount, addToken, getToken, setPassword } = sqls,
 			encryptionPhrase = ENV.LINK_PASS || "securePass",
-			allowSecureConnect = true,
 			[account,password] = login.split("/"),
 			isGuest = account.startsWith("guest") && account.endsWith(host);
 		
@@ -299,14 +326,29 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 		sqlThread( sql => {
 			switch ( cb.name ) {
 				case "resetPassword":		// host requesting a password reset
+					
 					getProfile( sql, account, prof => {
 						//Trace("login resetPass", [password, prof]);
 						
 						if ( prof )	{	// have a valid user login
 							if ( passwordOk(password) )
-								sql.query( setPassword, [password, encryptionPhrase, allowSecureConnect, account], err => {
-									Trace("setpass", [account, password]);
-									cb( err ? errors.resetFailed : null, prof );
+								genPassword( token => {
+									const 
+										link = "http://localhost:8080/login".tag("?", { client:account, pass:password, token:token}),
+										valid = "password change validation".tag("a", { href: link });		
+
+									notify({
+										to: account,
+										subject: "Totem account verification",
+										html: `Your ${valid} expires ${prof.Expires}`
+									});
+									
+									cb( null, prof );
+									/*
+									sql.query( setPassword, [password, encryptionPhrase, secureToken, account], err => {
+										Trace("setpass", [account, password]);
+										cb( err ? errors.resetFailed : null, prof );
+									}); */
 								});
 
 							else
@@ -329,26 +371,27 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 					break;
 
 				case "newAccount": 			// host requesting a new account
-					if ( true )			// only guests can request a new account
-						genPassword( password => {
-							//Trace("gen", account, password);
-							newAccount( sql, account, password, prof => {
-								if ( prof ) {
-									cb( prof );
-									notify({
-										to: account,
-										subject: "Totem account verification",
-										text: `You may login with ${account}/${password} until ${prof.Expires}`
-									});
-								}
-								
-								else
-									cb( errors.badLogin );
-							});
-						});
+					
+					Trace("newAccount Login", [account, password]) ;
 
-					else
-						cb( errors.nonGuest );
+					newAccount( sql, account, password, prof => {
+						if ( prof ) {
+							const 
+								{ SecureCom } = prof,
+								link = "http://localhost:8080/login".tag("?",{client:account, token:SecureCom}),
+								valid = "login validation".tag("a", { href: link });		
+
+							notify({
+								to: account,
+								subject: "Totem account verification",
+								html: `Your ${valid} expires ${prof.Expires}`
+							});
+							cb( null, prof );
+						}
+
+						else
+							cb( errors.badLogin );
+					});
 
 					break;
 
@@ -358,7 +401,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 					
 					getProfile( sql, account, prof => {
 						if ( prof )	{	// have a valid user login
-							//Trace("login newSession", [password, prof, password == prof.Password]);
+							Trace("newSession login", [password, prof]);
 							if ( prof.Banned ) 				// account banned for some reason
 								cb(	new Error(prof.Banned) );
 
@@ -410,7 +453,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				default:
 					
 					getProfile( sql, account, prof => {
-						//Trace("getprof", prof);
+						Trace("guestSession Login prof", prof);
 						if ( prof ) 
 							if ( prof.Banned ) 
 								cb(	new Error(prof.Banned) );	
@@ -420,7 +463,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 						
 						else
 							newAccount( sql, account, "", prof => {
-								Trace("newacct", prof);
+								Trace("new guest", prof);
 								if ( prof ) 
 									cb( null, prof );
 								
@@ -453,7 +496,6 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	testClient: (client,guess,res) => {
 			
 		const
-			{ sqlThread } = SECLINK,
 			{ getRiddle }= sqls;
 		
 		if ( getRiddle ) 
@@ -532,7 +574,7 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 		}
 		
 		const 
-			{ inspect, sqlThread, guest, notify, server, challenge } = Copy( opts, SECLINK, "." ),
+			{ inspect, guest, notify, server, challenge } = Copy( opts, SECLINK, "." ),
 			{ getProfile, addSession } = sqls;
 
 		const
@@ -744,16 +786,16 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 				});
 			});
 
-			socket.on("login", (req,socket) => {
+			socket.on("admin", (req,socket) => {
 
 				const 
 					{ login, client } = req,
-					[account,password,reset] = login.split("/");
+					[account,password,opt] = login.split("/");
 				
 				Trace("login client", `${client}/${account}/${password}` );
 
 				if ( account )
-					switch ( account ) {
+					switch ( opt ) {
 						/*
 						case "reset":
 							Login( password, function resetPassword(status) {
@@ -774,71 +816,178 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 
 							break;
 
-						default:
-							if ( password )
-								if ( reset ) 
-									Login( login, function resetPassword(err,prof) {
-										Trace("resetPassword", err);
-										SIO.clients[client].emit("status", { 
-											message: err ? "Password reset failed" : "Password reset",
-										});
-									});
-							
-								else
-									Login( login, function newSession(err,prof) {
-										Trace("newSession", {login: login, err: err, profile: prof, client: client, sio: SIO.clients});
-										try {
-											if ( err ) 
-												SIO.clients[client].emit("status", { // return error msg to client
-													message: err+"",
-												});
-
-											else {
-												sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
-
-												SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
-													message: "Login completed",
-													cookie: `session=${prof.Client}; expires=${prof.Expires}; path=/`
-													//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
-												});
-
-												SIO.emit("remove", {	// notify all clients to remove this client
-													client: client
-												});
-
-												SIO.emit("accept", {	// notify all clients to accept this client
-													client: account,
-													pubKey: prof.pubKey,
-												}); 
-											}
-
-										}
-										catch (err) {
-											Trace(err, "Login failed");
-										}
-									});
-
-							else
-								Login( login, function newAccount(err,prof) {
-									Trace("socket newAccount", err, prof);
-									try {
-										if ( err ) 
-											SIO.clients[client].emit("status", { // return error msg to client
-												message: err+"",
-											});
-
-										else
-											SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
-												message: "Account requested",
-												//cookie: `session=${prof.Client}; expires=${prof.Expires.toUTCString()}; path=/`
-												//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
-											});		
-									}
-									
-									catch (err) {
-										Trace(err, "Login failed");
-									}
+						case "reset":
+							Login( login, function resetPassword(err,prof) {
+								Trace("resetPassword", err, prof);
+								SIO.clients[client].emit("status", { 
+									message: err ? "Password reset failed" : "Password reset",
 								});
+							});
+							break;
+							
+						case "new":
+							Login( login, function newAccount(err,prof) {
+								Trace("login newAccount", err, prof);
+								try {
+									if ( err ) 
+										SIO.clients[client].emit("status", { // return error msg to client
+											message: "Account cant be created"
+										});
+
+									else
+										SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
+											message: "Account verification sent"
+											//cookie: `session=${prof.Client}; expires=${prof.Expires.toUTCString()}; path=/`
+											//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
+										});		
+								}
+
+								catch (err) {
+									Trace(err, "Login failed");
+								}
+							});
+							break;
+							
+						default:
+							Login( login, function newSession(err,prof) {
+								Trace("login newSession", err, prof);
+								try {
+									if ( err ) 
+										SIO.clients[client].emit("status", { // return error msg to client
+											message: err+"",
+										});
+
+									else {
+										sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
+
+										SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
+											message: "Login completed",
+											cookie: `session=${prof.Client}; expires=${prof.Expires}; path=/`
+											//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
+										});
+
+										SIO.emit("remove", {	// notify all clients to remove this client
+											client: client
+										});
+
+										SIO.emit("accept", {	// notify all clients to accept this client
+											client: account,
+											pubKey: prof.pubKey,
+										}); 
+									}
+
+								}
+								
+								catch (err) {
+									Trace(err, "Login failed");
+								}
+							});
+							
+					}
+				
+				else
+					SIO.clients[client].emit("status", { // return error msg to client
+						message: "invalid login credentials",
+					});					
+			});
+			
+			socket.on("login", (req,socket) => {
+
+				const 
+					{ login, client } = req,
+					[account,password,opt] = login.split("/");
+				
+				Trace("login client", `${client}/${account}/${password}` );
+
+				if ( account )
+					switch ( opt ) {
+						/*
+						case "reset":
+							Login( password, function resetPassword(status) {
+								Trace("socket resetPassword", status);
+								SIO.clients[password].emit("status", { 
+									message: status,
+								});
+							});
+							break;
+						*/
+							
+						case "logout":
+						case "logoff":
+							sqlThread( sql => sql.query("UPDATE openv.profiles SET online=0 WHERE Client=?", client) );
+							SIO.emit("remove", {	// broadcast client's pubKey to everyone
+								client: client,
+							});
+
+							break;
+
+						case "reset":
+							Login( login, function resetPassword(err,prof) {
+								Trace("resetPassword", err, prof);
+								SIO.clients[client].emit("status", { 
+									message: err ? "Password reset failed" : "Password reset",
+								});
+							});
+							break;
+							
+						case "new":
+							Login( login, function newAccount(err,prof) {
+								Trace("login newAccount", err, prof);
+								try {
+									if ( err ) 
+										SIO.clients[client].emit("status", { // return error msg to client
+											message: "Account cant be created"
+										});
+
+									else
+										SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
+											message: "Account verification sent"
+											//cookie: `session=${prof.Client}; expires=${prof.Expires.toUTCString()}; path=/`
+											//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
+										});		
+								}
+
+								catch (err) {
+									Trace(err, "Login failed");
+								}
+							});
+							break;
+							
+						default:
+							Login( login, function newSession(err,prof) {
+								Trace("login newSession", err, prof);
+								try {
+									if ( err ) 
+										SIO.clients[client].emit("status", { // return error msg to client
+											message: err+"",
+										});
+
+									else {
+										sqlThread( sql => sql.query("UPDATE openv.profiles SET online=1 WHERE Client=?", account) );
+
+										SIO.clients[client].emit("status", { 	// return login ok msg to client with convenience cookie
+											message: "Login completed",
+											cookie: `session=${prof.Client}; expires=${prof.Expires}; path=/`
+											//passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
+										});
+
+										SIO.emit("remove", {	// notify all clients to remove this client
+											client: client
+										});
+
+										SIO.emit("accept", {	// notify all clients to accept this client
+											client: account,
+											pubKey: prof.pubKey,
+										}); 
+									}
+
+								}
+								
+								catch (err) {
+									Trace(err, "Login failed");
+								}
+							});
+							
 					}
 				
 				else
@@ -956,12 +1105,10 @@ const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 		extendChallenger ( );
 		
 		return SECLINK;
-	},
+	}
 	
 }
 
-Start("securelink", {
-	ctx: SECLINK
-});
+Start("securelink", SECLINK);
 
 // UNCLASSIFIED

@@ -31,23 +31,18 @@ function secure_login() {
 		{ secureLink,bang,initSecureLink,iosocket } = SECLINK,
 		notice = document.getElementById("notice"),
 		//lock = document.getElementById("lock"),
-		users = document.getElementById("users");
+		users = document.getElementById("users"),
+		login = notice.value,
+		[acct,pass] = login.split("/");
 
-	try {
-		const
-			{ pubKeys } = SECLINK,
-			login = notice.value;
-
+	if (iosocket)
 		iosocket.emit("login", {
-			login: login,
+			login: acct ? pass ? login : `${acct}//new` : `${ioClient}/${pass}/reset`,
 			client: ioClient
 		});
-	}
-
-	catch (err) {
-		secTrace("login", err);
-		notice.value = "login failed";
-	}
+	
+	else
+		notice.value = "no secure link";
 
 }
 
