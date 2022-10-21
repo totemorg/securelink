@@ -125,8 +125,9 @@ On the client:
 
 * [SECLINK](#module_SECLINK)
     * [.host](#module_SECLINK.host)
+    * [.validate()](#module_SECLINK.validate)
     * [.isTrusted()](#module_SECLINK.isTrusted)
-    * [.Login(login, cb)](#module_SECLINK.Login)
+    * [.Login(account, password, cb)](#module_SECLINK.Login)
     * [.testClient(client, guess, res)](#module_SECLINK.testClient)
     * [.config()](#module_SECLINK.config)
 
@@ -136,6 +137,12 @@ On the client:
 Domain name of host for attributing domain-owned accounts.
 
 **Kind**: static property of [<code>SECLINK</code>](#module_SECLINK)  
+<a name="module_SECLINK.validate"></a>
+
+### SECLINK.validate()
+Validate a new/reset account request with callback cb( pass || null ).
+
+**Kind**: static method of [<code>SECLINK</code>](#module_SECLINK)  
 <a name="module_SECLINK.isTrusted"></a>
 
 ### SECLINK.isTrusted()
@@ -144,7 +151,7 @@ Test if an account is "trusted" to use the secure com channel.
 **Kind**: static method of [<code>SECLINK</code>](#module_SECLINK)  
 <a name="module_SECLINK.Login"></a>
 
-### SECLINK.Login(login, cb)
+### SECLINK.Login(account, password, cb)
 Start a secure link and return the user profile corresponding for the supplied 
 	account/password login.  The provided callback LOGIN(err,profile) where LOGIN =  
 	resetPassword || newAccount || newSession || guestSession determines the login session
@@ -155,7 +162,8 @@ Start a secure link and return the user profile corresponding for the supplied
 
 | Param | Type | Description |
 | --- | --- | --- |
-| login | <code>String</code> | account/password credentials |
+| account | <code>String</code> | credentials |
+| password | <code>String</code> | credentials |
 | cb | <code>function</code> | callback (err,profile) to process the session |
 
 <a name="module_SECLINK.testClient"></a>

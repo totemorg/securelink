@@ -31,13 +31,13 @@ function secure_login() {
 		{ secureLink,bang,initSecureLink,iosocket } = SECLINK,
 		notice = document.getElementById("notice"),
 		//lock = document.getElementById("lock"),
-		users = document.getElementById("users"),
-		login = notice.value,
-		[acct,pass] = login.split("/");
+		//users = document.getElementById("users"),
+		[user,pass] = notice.value.split("/");
 
 	if (iosocket)
 		iosocket.emit("login", {
-			login: acct ? pass ? login : `${acct}//new` : `${ioClient}/${pass}/reset`,
+			user: user,
+			pass: pass,
 			client: ioClient
 		});
 	
