@@ -1,6 +1,6 @@
 {
   "name": "@totemorg/securelink",
-  "version": "1.21.0",
+  "version": "1.22.0",
   "description": "provide secure login link to web services",
   "main": "securelink",
   "scripts": {
