@@ -64,7 +64,7 @@ const
 
 	// For working socketio
 	SOCKETIO = require("@totemorg/socketio"),
-	{ Copy, Each, Start, Log, txmailCon, sqlThread } = require("@totemem/enums");
+	{ Copy, Each, Start, Log, txmailCon, sqlThread } = require("@totemorg/enums");
 
 const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	
