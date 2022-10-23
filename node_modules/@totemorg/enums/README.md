@@ -6,10 +6,14 @@ to required services: mysql, neo4j, txmail, rxmail.
 ## Manage
 
 	npm install @totemorg/enums		# install
+	npm install @totemorg/dbs		# install database schema
+
 	npm run start [ ? | $ | ...]	# Unit test
 	npm run verminor				# Roll minor version
 	npm run vermajor				# Roll major version
 	npm run redoc					# Regen documentation
+
+	npm run	startdbs				# Start required database servers
 
 ## Usage
 

@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/totemstan/securelink#readme",
   "dependencies": {
-    "@totemorg/enums": "^1.21.0",
+    "@totemorg/enums": "^1.27.0",
     "@totemorg/socketio": "^1.11.0"
   }
 }

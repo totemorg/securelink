@@ -63,8 +63,8 @@ const
 	//HUBIO = new (SIOHUB);
 
 	// For working socketio
-	SOCKETIO = require("./socketio"),
-	{ Copy, Each, Start, Log, txmailCon, sqlThread } = require("./enums");
+	SOCKETIO = require("@totemorg/socketio"),
+	{ Copy, Each, Start, Log, txmailCon, sqlThread } = require("@totemem/enums");
 
 const { sqls, Trace, Login, errors } = SECLINK = module.exports = {
 	
@@ -457,7 +457,7 @@ Validate a new/reset account request with callback cb( pass || null ).
 				default:
 					
 					getProfile( sql, account, prof => {
-						Trace("guestSession Login prof", prof);
+						//Trace("guestSession Login prof", prof);
 						if ( prof ) 
 							if ( prof.Banned ) 
 								cb(	new Error(prof.Banned) );	
