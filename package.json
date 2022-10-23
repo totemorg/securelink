@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/totemstan/securelink.git"
+    "url": "git+https://github.com/totemorg/securelink.git"
   },
   "keywords": [
     "E2EE"
@@ -19,9 +19,9 @@
   "author": "acme SDS",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/totemstan/securelink/issues"
+    "url": "https://github.com/totemorg/securelink/issues"
   },
-  "homepage": "https://github.com/totemstan/securelink#readme",
+  "homepage": "https://github.com/totemorg/securelink#readme",
   "dependencies": {
     "@totemorg/enums": "^1.27.0",
     "@totemorg/socketio": "^1.14.0"
