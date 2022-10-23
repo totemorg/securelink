@@ -93,7 +93,7 @@ On the client:
 
 const
 	CRYPTO = require("crypto"),
-	{Copy, Each, Start, isFunction} = require("./enums");
+	{Copy, Each, Start, isFunction} = require("@totemorg/enums");
 
 const
 	{ Trace } = module.exports = SIO = Copy({
